@@ -1,1 +1,11 @@
-DrissionPage==4.0.0b17
+numpy==1.22.2
+Flask==2.2.0
+selenium==4.4.3
+webdriver-manager==3.8.3
+pandas==1.5.0
+openpyxl==3.0.10
+SharePlum==0.5.1
+PyPDF2==2.11.1
+pdfplumber==0.7.5
+tika==1.24
+python-dotenv

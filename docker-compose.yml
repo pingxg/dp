@@ -1,7 +1,0 @@
-version: '3'
-services:
-  web-automation:
-    build: .
-    volumes:
-      - .:/app
-    scale: 2 # Adjust the number of containers you want to run
