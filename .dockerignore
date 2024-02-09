@@ -1,0 +1,14 @@
+.git
+.svn
+.hg
+node_modules
+venv
+build/
+dist/
+*.log
+config.json
+*.md
+.DS_Store
+Thumbs.db
+.vscode
+.idea

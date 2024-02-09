@@ -14,7 +14,10 @@ from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.common.action_chains import ActionChains
+
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.alert import Alert
 from extractor import info_extractor, expressions
@@ -850,30 +853,10 @@ def get_invoice_text(vendor, invoice_num):
         logging.info(
             f'Invoice {invoice_num} from {expressions[vendor][0]} has been processed successfully!'
         )
-        logging.info(
-            f'Invoice {invoice_num} from {expressions[vendor][0]} has been processed successfully!'
-        )
         return True
 
 
 if __name__ == '__main__':
-
-    chrome_options = Options()
-    prefs = {
-        "download.default_directory": TEMP_PATH,
-        "plugins.always_open_pdf_externally": True,
-        "download.prompt_for_download": False,
-        "plugins.plugins_list": [{
-            "enabled": False,
-            "name": "Chrome PDF Viewer"
-        }],
-        "download.extensions_to_open": "applications/pdf",
-    }
-
-    chrome_options.add_experimental_option("prefs", prefs)
-    chrome_options.add_argument('--no-sandbox')
-    chrome_options.add_argument('--disable-dev-shm-usage')
-
     authcookie = Office365(os.getenv('office_site'),
                            username=os.getenv('office_usn'),
                            password=os.getenv('office_psw'))
@@ -894,32 +877,31 @@ if __name__ == '__main__':
     filtered_df = operational_data[operational_data['status'].isin(
         [np.nan, 'Failed'])]
     logging.info(filtered_df)
+
+    chrome_options = Options()
+    prefs = {
+        "download.default_directory": TEMP_PATH,
+        "plugins.always_open_pdf_externally": True,
+        "download.prompt_for_download": False,
+        "plugins.plugins_list": [{
+            "enabled": False,
+            "name": "Chrome PDF Viewer"
+        }],
+        "download.extensions_to_open": "applications/pdf",
+    }
+
+    chrome_options.add_experimental_option("prefs", prefs)
+    chrome_options.add_argument('--no-sandbox')
+    # chrome_options.add_argument('--headless')
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument('--disable-dev-shm-usage')
+    # chrome_options.add_argument('--verbose')
+
     driver = webdriver.Chrome(options=chrome_options,
-                              executable_path=r'C:\Program Files\chromedriver.exe')
+                              executable_path=r'/usr/bin/chromedriver')
+                            #   service=Service(ChromeDriverManager().install()))
     login(driver)
-    # for index, row in filtered_df.iterrows():
-    #     try:
-    #         if row['status'] != 'Success':
-    #             get_invoice_text(vendor=row['vendor'].split(" / ")[-1],
-    #                              invoice_num=row['invoice_num'])
-
-    #             filtered_df.at[index, 'status'] = 'Success'
-    #         else:
-    #             pass
-    #     except:
-    #         filtered_df.at[index, 'status'] = 'Failed'
-
-    #         logging.info("\n\nRESTARTING NOW\n\n")
-    #         system("python restarter.py")
-    #         system('kill 1')
-
-    #     finally:
-    #         try:
-    #             filtered_df = filtered_df.drop(columns='vendor_id')
-    #         except:
-    #             pass
-    #         folder.upload_file(filtered_df.to_csv(index=False, sep=';'),
-    #                            'bot_status.csv')
+    logging.error(filtered_df)
 
     for index, row in filtered_df.iterrows():
         try:
