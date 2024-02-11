@@ -66,24 +66,24 @@ def wait_for_element(driver, locator, timeout=10, clickable=False):
 
 
 
-# def login(driver, username=os.getenv('bw_usr'), password=os.getenv('bw_psw'), login_url=os.getenv('bw_url')):
-#     """
-#     Logs into a website using the provided credentials.
+def login(driver, username=os.getenv('bw_usr'), password=os.getenv('bw_psw'), login_url=os.getenv('bw_url')):
+    """
+    Logs into a website using the provided credentials.
     
-#     Parameters:
-#     - driver: Selenium WebDriver instance.
-#     - username: Username for login.
-#     - password: Password for login.
-#     - login_url: URL of the login page.
-#     """
-#     try:
-#         driver.get(login_url)
-#         driver.find_element(By.ID, "txtUsername").send_keys(username)
-#         driver.find_element(By.ID, "txtPasswd").send_keys(password)
-#         driver.find_element(By.ID, "btnLogin").click()
-#         logging.info("Login successful")
-#     except Exception as e:
-#         logging.error(f"Login failed: {e}")
+    Parameters:
+    - driver: Selenium WebDriver instance.
+    - username: Username for login.
+    - password: Password for login.
+    - login_url: URL of the login page.
+    """
+    try:
+        driver.get(login_url)
+        driver.find_element(By.ID, "txtUsername").send_keys(username)
+        driver.find_element(By.ID, "txtPasswd").send_keys(password)
+        driver.find_element(By.ID, "btnLogin").click()
+        logging.info("Login successful")
+    except Exception as e:
+        logging.error(f"Login failed: {e}")
 
 
 def switch_to_iframe(driver, locator, timeout=10):
@@ -159,14 +159,14 @@ def get_inv_number(df):
 
 
 def delete_file_by_type(path=TEMP_PATH, file_type='pdf'):
-    files = [f for f in os.listdir(path) if os.path.isfile(f)]
+    files = [f for f in os.listdir(path)]
     files = list(
         filter(
             lambda f: f.endswith((f'.{file_type}', f'.{file_type.upper()}')),
             files))
 
     for i in files:
-        os.remove(i)
+        os.remove(os.path.join(path, i))
 
 
 def read_pdf_text(path=TEMP_PATH, file_type='pdf'):
@@ -180,28 +180,28 @@ def read_pdf_text(path=TEMP_PATH, file_type='pdf'):
     Returns:
     - str: The extracted text content if a single PDF file is found. Otherwise returns None.
     """
-    files = [f for f in os.listdir(path) if os.path.isfile(f)]
+    files = [f for f in os.listdir(path)]
     files = list(
         filter(
             lambda f: f.endswith((f'.{file_type}', f'.{file_type.upper()}')),
             files))
     if len(files) == 1:
-        with pdfplumber.open(files[0]) as pdf:
+        with pdfplumber.open(os.path.join(path, files[0])) as pdf:
             pdfToString = "".join(page.extract_text() for page in pdf.pages)
-        logging.info(pdfToString)
+        delete_file_by_type()
         return pdfToString
 
 
-def login(driver):
-    driver.get('https://cloud3.ir.basware.com/neologinf/login.aspx#app')
-    username = driver.find_element(By.ID, "txtUsername")
-    username.clear()
-    username.send_keys()
-    password = driver.find_element(By.ID, "txtPasswd")
-    password.clear()
-    password.send_keys()
-    driver.find_element(By.ID, "btnLogin").click()
-    logging.error("Login successful!")
+# def login(driver):
+#     driver.get('https://cloud3.ir.basware.com/neologinf/login.aspx#app')
+#     username = driver.find_element(By.ID, "txtUsername")
+#     username.clear()
+#     username.send_keys()
+#     password = driver.find_element(By.ID, "txtPasswd")
+#     password.clear()
+#     password.send_keys()
+#     driver.find_element(By.ID, "btnLogin").click()
+#     logging.error("Login successful!")
 
 
 
@@ -320,7 +320,6 @@ def get_invoice_text(vendor, invoice_num):
             (By.XPATH, '/html/body/form/div[3]/div/iframe')))
     driver.switch_to.frame(viewer_frame)
 
-    delete_file_by_type(file_type="pdf")
 
     save_button = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located(
@@ -981,13 +980,13 @@ if __name__ == '__main__':
 
     chrome_options.add_experimental_option("prefs", prefs)
     chrome_options.add_argument('--no-sandbox')
-    # chrome_options.add_argument('--headless')
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument('--disable-dev-shm-usage')
-    chrome_options.add_argument('--disable-gpu')
+    # chrome_options.add_argument('--disable-gpu')
 
     driver = webdriver.Chrome(options=chrome_options,
-                              executable_path=r'/usr/bin/chromedriver')
+                            #   executable_path=r'/usr/bin/chromedriver')
+                              executable_path=r'C:\Program Files\chromedriver.exe')
                             #   service=Service(ChromeDriverManager().install()))
     
     login(driver)
