@@ -1,0 +1,14 @@
+# List of files to monitor and forward
+files:
+  - /logs/application.log
+
+# Destination settings for Papertrail
+destination:
+  host: logs5.papertrailapp.com
+  port: 38545
+  protocol: tls
+
+# Optional settings
+hostname: my-custom-hostname # Custom hostname to appear in Papertrail
+# exclude_patterns: # Ignore lines that match these patterns
+#   - "debug"

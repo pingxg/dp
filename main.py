@@ -14,18 +14,23 @@ from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.common.action_chains import ActionChains
-
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.alert import Alert
+
+from selenium.common.exceptions import TimeoutException
+
+from contextlib import contextmanager
+
+
 from extractor import info_extractor, expressions
+import logging
 import logger_config
 
 logger_config.setup_logging()
 
-import logging
 TEMP_PATH = os.path.join(os.getcwd(), 'temp')
 # Check if the folder exists, and if not, create it
 if not os.path.exists(TEMP_PATH):
@@ -34,6 +39,96 @@ if not os.path.exists(TEMP_PATH):
 else:
     logging.info(f"Temp folder already exists at: {TEMP_PATH}")
 
+def wait_for_element(driver, locator, timeout=10, clickable=False):
+    """
+    Waits for an element to be present or clickable within a specified timeout.
+
+    Parameters:
+    - driver: The Selenium WebDriver instance.
+    - locator: A tuple specifying the locator strategy and value, e.g., (By.ID, "element_id").
+    - timeout: The maximum number of seconds to wait for the element (default is 10 seconds).
+    - clickable: If True, waits for the element to be clickable; otherwise, waits for the element's presence.
+
+    Returns:
+    - WebElement if found and satisfies the condition; otherwise, raises TimeoutException.
+
+    Raises:
+    - TimeoutException if the element does not satisfy the condition within the timeout period.
+    """
+    try:
+        if clickable:
+            return WebDriverWait(driver, timeout).until(EC.element_to_be_clickable(locator))
+        else:
+            return WebDriverWait(driver, timeout).until(EC.presence_of_element_located(locator))
+    except TimeoutException:
+        logging.error(f"Element with locator {locator} not found within {timeout} seconds.")
+        raise
+
+
+
+# def login(driver, username=os.getenv('bw_usr'), password=os.getenv('bw_psw'), login_url=os.getenv('bw_url')):
+#     """
+#     Logs into a website using the provided credentials.
+    
+#     Parameters:
+#     - driver: Selenium WebDriver instance.
+#     - username: Username for login.
+#     - password: Password for login.
+#     - login_url: URL of the login page.
+#     """
+#     try:
+#         driver.get(login_url)
+#         driver.find_element(By.ID, "txtUsername").send_keys(username)
+#         driver.find_element(By.ID, "txtPasswd").send_keys(password)
+#         driver.find_element(By.ID, "btnLogin").click()
+#         logging.info("Login successful")
+#     except Exception as e:
+#         logging.error(f"Login failed: {e}")
+
+
+def switch_to_iframe(driver, locator, timeout=10):
+    """
+    Waits for an iframe to be available and then switches to it.
+
+    Parameters:
+    - driver: The Selenium WebDriver instance.
+    - locator: A tuple specifying the locator strategy and value, e.g., (By.TAG_NAME, 'iframe').
+    - timeout: The maximum number of seconds to wait for the iframe.
+    """
+    try:
+        WebDriverWait(driver, timeout).until(EC.frame_to_be_available_and_switch_to_it(locator))
+        logging.info(f"Switched to iframe with locator {locator}")
+    except TimeoutException:
+        logging.error(f"Failed to switch to iframe with locator {locator} within {timeout} seconds")
+        raise
+
+
+def switch_to_default_content(driver):
+    """
+    Switches back to the main document content from an iframe.
+
+    Parameters:
+    - driver: The Selenium WebDriver instance.
+    """
+    driver.switch_to.default_content()
+    logging.info("Switched back to the default content")
+
+
+
+@contextmanager
+def iframe_context(driver, locator):
+    """
+    A context manager for switching to an iframe and automatically returning to the default content afterwards.
+
+    Parameters:
+    - driver: The Selenium WebDriver instance.
+    - locator: A tuple specifying the locator strategy and value for the iframe.
+    """
+    try:
+        switch_to_iframe(driver, locator)
+        yield
+    finally:
+        switch_to_default_content(driver)
 
 
 
@@ -46,7 +141,6 @@ def get_inv_number(df):
         df = df.rename(columns={'Description': 'vendor'})
         df = df.loc[:, ['vendor', 'invoice_num']]
     except:
-        logging.info("No valid information found in bw_bot_log.csv to process!")
         logging.error(
             "No valid information found in bw_bot_log.csv to process!")
         pass
@@ -94,7 +188,7 @@ def read_pdf_text(path=TEMP_PATH, file_type='pdf'):
     if len(files) == 1:
         with pdfplumber.open(files[0]) as pdf:
             pdfToString = "".join(page.extract_text() for page in pdf.pages)
-        print(pdfToString)
+        logging.info(pdfToString)
         return pdfToString
 
 
@@ -102,11 +196,13 @@ def login(driver):
     driver.get('https://cloud3.ir.basware.com/neologinf/login.aspx#app')
     username = driver.find_element(By.ID, "txtUsername")
     username.clear()
-    username.send_keys(os.getenv('bw_usr'))
+    username.send_keys()
     password = driver.find_element(By.ID, "txtPasswd")
     password.clear()
-    password.send_keys(os.getenv('bw_psw'))
+    password.send_keys()
     driver.find_element(By.ID, "btnLogin").click()
+    logging.error("Login successful!")
+
 
 
 def filtering_invoice(
@@ -118,21 +214,13 @@ def filtering_invoice(
 ):
     driver.switch_to.default_content()
 
-    # purchase_invoices = WebDriverWait(driver, 15).until(
-    #     EC.presence_of_element_located(
-    #         (By.XPATH, '/html/body/form/table[13]/tbody/tr/td[6]'))).click()
 
-    # for temp mode only
-    purchase_invoices = WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/form/table[12]/tbody/tr/td[6]')))
+    purchase_invoices = wait_for_element(driver, (By.XPATH, '/html/body/form/table[12]/tbody/tr/td[6]'))
     purchase_invoices.click()
 
-    process_purchase_invoices = WebDriverWait(driver, 15).until(
-        EC.presence_of_element_located(
-            (By.XPATH,
-             '/html/body/form/table[4]/tbody/tr[2]/td/table/tbody/tr/td[1]')))
+    process_purchase_invoices = wait_for_element(driver, (By.XPATH, '/html/body/form/table[4]/tbody/tr[2]/td/table/tbody/tr/td[1]'))
     process_purchase_invoices.click()
+
     global applicationframe
     applicationframe = WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/iframe")))
@@ -873,10 +961,11 @@ if __name__ == '__main__':
     bot_input = bot_input[bot_input['status'] != "Success"]
 
     operational_data = get_inv_number(bot_input)
-    print(operational_data)
+
+
     filtered_df = operational_data[operational_data['status'].isin(
         [np.nan, 'Failed'])]
-    logging.info(filtered_df)
+    logging.error(filtered_df)
 
     chrome_options = Options()
     prefs = {
@@ -895,11 +984,12 @@ if __name__ == '__main__':
     # chrome_options.add_argument('--headless')
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument('--disable-dev-shm-usage')
-    # chrome_options.add_argument('--verbose')
+    chrome_options.add_argument('--disable-gpu')
 
     driver = webdriver.Chrome(options=chrome_options,
                               executable_path=r'/usr/bin/chromedriver')
                             #   service=Service(ChromeDriverManager().install()))
+    
     login(driver)
     logging.error(filtered_df)
 
@@ -919,18 +1009,17 @@ if __name__ == '__main__':
             # logging.info(f"An error occurred: {repr(e)}")
 
             # If you want the full traceback, you can use:
-            logging.info(e)
+            logging.error(e)
 
-            logging.info("\n\nRESTARTING NOW\n\n")
-            system("python restarter.py")
-            system('kill 1')
+            # logging.error("\n\nRESTARTING NOW\n\n")
+            # system("python restarter.py")
+            # system('kill 1')
 
         finally:
             try:
                 filtered_df = filtered_df.drop(columns='vendor_id')
-            except Exception as e:  # It's good practice to specify the exception
+            except Exception as e: 
+                logging.error(f"An error occurred while dropping the column: {repr(e)}")
                 pass
-                # logging.info(
-                #     f"An error occurred while dropping the column: {repr(e)}")
             folder.upload_file(filtered_df.to_csv(index=False, sep=';'),
                                'bot_status.csv')
