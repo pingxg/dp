@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import io
+import sys
 import os
 from os import system
 import datetime as dt
@@ -32,6 +33,7 @@ import logger_config
 logger_config.setup_logging()
 
 TEMP_PATH = os.path.join(os.getcwd(), 'temp')
+
 # Check if the folder exists, and if not, create it
 if not os.path.exists(TEMP_PATH):
     os.makedirs(TEMP_PATH)
@@ -39,7 +41,7 @@ if not os.path.exists(TEMP_PATH):
 else:
     logging.info(f"Temp folder already exists at: {TEMP_PATH}")
 
-def wait_for_element(driver, locator, timeout=10, clickable=False):
+def wait_for_element(driver, locator, timeout=10, clickable=True):
     """
     Waits for an element to be present or clickable within a specified timeout.
 
@@ -78,9 +80,9 @@ def login(driver, username=os.getenv('bw_usr'), password=os.getenv('bw_psw'), lo
     """
     try:
         driver.get(login_url)
-        driver.find_element(By.ID, "txtUsername").send_keys(username)
-        driver.find_element(By.ID, "txtPasswd").send_keys(password)
-        driver.find_element(By.ID, "btnLogin").click()
+        wait_for_element(driver, (By.ID, "txtUsername")).send_keys(username)
+        wait_for_element(driver, (By.ID, "txtPasswd")).send_keys(password)
+        wait_for_element(driver, (By.ID, "btnLogin")).click()
         logging.info("Login successful")
     except Exception as e:
         logging.error(f"Login failed: {e}")
@@ -182,26 +184,12 @@ def read_pdf_text(path=TEMP_PATH, file_type='pdf'):
     """
     files = [f for f in os.listdir(path)]
     files = list(
-        filter(
-            lambda f: f.endswith((f'.{file_type}', f'.{file_type.upper()}')),
-            files))
+        filter(lambda f: f.endswith((f'.{file_type}', f'.{file_type.upper()}')), files))
     if len(files) == 1:
         with pdfplumber.open(os.path.join(path, files[0])) as pdf:
             pdfToString = "".join(page.extract_text() for page in pdf.pages)
         delete_file_by_type()
         return pdfToString
-
-
-# def login(driver):
-#     driver.get('https://cloud3.ir.basware.com/neologinf/login.aspx#app')
-#     username = driver.find_element(By.ID, "txtUsername")
-#     username.clear()
-#     username.send_keys()
-#     password = driver.find_element(By.ID, "txtPasswd")
-#     password.clear()
-#     password.send_keys()
-#     driver.find_element(By.ID, "btnLogin").click()
-#     logging.error("Login successful!")
 
 
 
@@ -217,58 +205,45 @@ def filtering_invoice(
 
     purchase_invoices = wait_for_element(driver, (By.XPATH, '/html/body/form/table[12]/tbody/tr/td[6]'))
     purchase_invoices.click()
-
     process_purchase_invoices = wait_for_element(driver, (By.XPATH, '/html/body/form/table[4]/tbody/tr[2]/td/table/tbody/tr/td[1]'))
     process_purchase_invoices.click()
 
+
     global applicationframe
-    applicationframe = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, "/html/body/div[1]/iframe")))
+    applicationframe = wait_for_element(driver, (By.XPATH, "/html/body/div[1]/iframe"), clickable=False)
     driver.switch_to.frame(applicationframe)
 
     global mainframehdr
-    mainframehdr = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.ID, "mainframehdr")))
+    mainframehdr = wait_for_element(driver, (By.ID, "mainframehdr"))
     global mainframe
-    mainframe = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.XPATH, "/html/body/div[2]/iframe")))
+    mainframe = wait_for_element(driver, (By.XPATH, "/html/body/div[2]/iframe"))
 
     driver.switch_to.frame(mainframe)
 
-    select_company = Select(
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "/html/body/div/form/div[3]/div[1]/select"))))
-
+    select_company = Select(wait_for_element(driver, (By.XPATH, "/html/body/div/form/div[3]/div[1]/select"), clickable=False))
     select_company.select_by_visible_text(company)
 
-    inv_num_input = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.ID, "InvoiceNumberCtrl")))
-
+    inv_num_input = wait_for_element(driver, (By.ID, "InvoiceNumberCtrl"))
     inv_num_input.clear()
+    logging.error(f"inv_num_input: {inv_num_input}")
+
     if invoice_num:
         inv_num_input.send_keys(invoice_num)
 
-    supplier_input = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "/html/body/div/form/div[3]/div[1]/div[2]/div/input")))
-
+    supplier_input = wait_for_element(driver, (By.XPATH, "/html/body/div/form/div[3]/div[1]/div[2]/div/input"))
     supplier_input.clear()
+    logging.error(f"supplier_input: {supplier_input}")
+
     if supplier:
         supplier_input.send_keys(expressions[supplier][0])
 
     if expressions[supplier][0] == "AB Tingstad Papper":
         status = "Data Incomplete"
 
-    select_status = Select(
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH, "/html/body/div[1]/form/div[3]/div[5]/select"))))
-
+    select_status = Select(wait_for_element(driver, (By.XPATH, "/html/body/div[1]/form/div[3]/div[5]/select"), clickable=False))
     select_status.select_by_visible_text(status)
-    update_btn = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "/html/body/div/form/div[3]/div[6]/input")))
+
+    update_btn = wait_for_element(driver, (By.XPATH, "/html/body/div/form/div[3]/div[6]/input"))
     update_btn.click()
 
 
@@ -280,12 +255,7 @@ def get_invoice_text(vendor, invoice_num):
     logging.info("Checking Tingstad...")
     if vendor != "1301716":
         is_tingstad = False
-
-        invoice_button = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.XPATH,
-                 '/html/body/div/form/div[4]/table/tbody/tr[2]/td[11]/a')))
-        logging.info(f"Invoice button: {invoice_button}")
+        invoice_button = wait_for_element(driver, (By.XPATH, '/html/body/div/form/div[4]/table/tbody/tr[2]/td[11]/a'))
 
     elif vendor == "1301716":
         is_tingstad = True
@@ -310,22 +280,18 @@ def get_invoice_text(vendor, invoice_num):
     driver.switch_to.frame(applicationframe)
     driver.switch_to.frame(mainframe)
     logging.info("Downloading the pdf...")
-    attachment_frame = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/div/div/div/div[3]/iframe')))
+    attachment_frame = wait_for_element(driver, 
+            (By.XPATH, '/html/body/div/div/div/div[3]/iframe'))
     driver.switch_to.frame(attachment_frame)
 
-    viewer_frame = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/form/div[3]/div/iframe')))
+    viewer_frame = wait_for_element(driver, 
+            (By.XPATH, '/html/body/form/div[3]/div/iframe'))
     driver.switch_to.frame(viewer_frame)
 
 
-    save_button = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, 'html/body/div/div/a/button')))
+    save_button = wait_for_element(driver, (By.XPATH, 'html/body/div/div/a/button'))
     save_button.click()
-    sleep(6)
+
     logging.info("Extacting the posting value...")
     posting_info = info_extractor(text=read_pdf_text(file_type='pdf'),
                                   vendor=vendor)
@@ -337,37 +303,27 @@ def get_invoice_text(vendor, invoice_num):
     driver.switch_to.frame(applicationframe)
     driver.switch_to.frame(mainframe)
     global info_page_frame
-    info_page_frame = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/div/div/div/div[1]/iframe')))
+    info_page_frame = wait_for_element(driver, (By.XPATH, '/html/body/div/div/div/div[1]/iframe'))
 
     driver.switch_to.frame(info_page_frame)
 
-    organizational_unit_btn = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((
-            By.XPATH,
-            '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[2]/td[2]/div/div/button'
-        )))
-    sleep(1)
+    organizational_unit_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[2]/td[2]/div/div/button'))
     driver.execute_script("arguments[0].click();", organizational_unit_btn)
 
     driver.switch_to.default_content()
-    dialog_frame = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "/html/body/div[3]/div/iframe")))
+    dialog_frame = wait_for_element(driver, 
+            (By.XPATH, "/html/body/div[3]/div/iframe"))
     driver.switch_to.frame(dialog_frame)
-    select_org_unit_btn = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, "/html/body/div/div[2]/form/div[4]/input[1]")))
+    select_org_unit_btn = wait_for_element(driver, 
+            (By.XPATH, "/html/body/div/div[2]/form/div[4]/input[1]"))
     select_org_unit_btn.click()
 
     driver.switch_to.default_content()
     driver.switch_to.frame(applicationframe)
     driver.switch_to.frame(mainframe)
     driver.switch_to.frame(info_page_frame)
-    post_btn = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]')))
+    post_btn = wait_for_element(driver, 
+            (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]'))
     if vendor == "1381774":
         logging.info("Modifing the S-Card due date...")
         due_date = WebDriverWait(driver, 10).until(
@@ -404,7 +360,6 @@ def get_invoice_text(vendor, invoice_num):
         logging.info(f"po_field: {po_field}")
 
         po_field.clear()
-        sleep(1)
         total_field = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((
                 By.XPATH,
@@ -415,7 +370,6 @@ def get_invoice_text(vendor, invoice_num):
         total_field.click()
         click_random_location = ActionChains(driver)
         click_random_location.move_by_offset(1000, 500).click().perform()
-        sleep(1)
         driver.switch_to.default_content()
         driver.switch_to.frame(applicationframe)
         driver.switch_to.frame(mainframe)
@@ -425,7 +379,7 @@ def get_invoice_text(vendor, invoice_num):
                 (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]')))
         logging.info(f"post_btn: {post_btn}")
         driver.execute_script("arguments[0].click();", post_btn)
-    sleep(1)
+    
     try:
         driver.execute_script("arguments[0].click();", post_btn)
     except:
@@ -434,12 +388,10 @@ def get_invoice_text(vendor, invoice_num):
     try:
         driver.switch_to.default_content()
         driver.switch_to.frame(errorframe)
-        sleep(2)
         next_time_check = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, '/html/body/div/div[3]/span/label')))
         next_time_check.click()
-        sleep(2)
         driver.switch_to.default_content()
         driver.switch_to.frame(errorframe)
         next_ok_btn = WebDriverWait(driver, 10).until(
@@ -452,7 +404,6 @@ def get_invoice_text(vendor, invoice_num):
 
     try:
         logging.info("Deleting the old posting info...")
-        sleep(3)
 
         driver.switch_to.default_content()
         driver.switch_to.frame(applicationframe)
@@ -470,7 +421,6 @@ def get_invoice_text(vendor, invoice_num):
                 (By.XPATH, '/html/body/form/div[3]/input[2]')))
         driver.execute_script("arguments[0].click();", delete_posting)
 
-        sleep(3)
         ""
         # create alert object
         alert = Alert(driver)
@@ -481,8 +431,6 @@ def get_invoice_text(vendor, invoice_num):
         # accept the alert
         alert.accept()
 
-        sleep(5)
-
     except:
         pass
 
@@ -490,9 +438,8 @@ def get_invoice_text(vendor, invoice_num):
     logging.info("Open posting page...")
     driver.switch_to.frame(applicationframe)
     driver.switch_to.frame(mainframe)
-    posting_frame = WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located(
-            (By.XPATH, '/html/body/form/div[2]/div[3]/iframe')))
+    posting_frame = wait_for_element(driver, 
+            (By.XPATH, '/html/body/form/div[2]/div[3]/iframe'))
     driver.switch_to.frame(posting_frame)
     posting_sum = Select(
         WebDriverWait(driver, 10).until(
@@ -529,7 +476,7 @@ def get_invoice_text(vendor, invoice_num):
 
             if 'class_code' in posting_info:
                 logging.info("Updating class...")
-                sleep(1)
+                
                 class_code = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -545,7 +492,6 @@ def get_invoice_text(vendor, invoice_num):
                     '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'
                 )))
             location.clear()
-            # logging.info(posting_info)
             location.send_keys(posting_info['location'])
 
         if '14' in posting_info:
@@ -563,7 +509,7 @@ def get_invoice_text(vendor, invoice_num):
 
             if 'class_code' in posting_info:
 
-                sleep(1)
+                
                 class_code = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -574,19 +520,19 @@ def get_invoice_text(vendor, invoice_num):
                 class_code.send_keys(posting_info['class_code'])
                 logging.info("Updating class...")
 
-            sleep(3)
+            
             location = WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((
                     By.XPATH,
                     '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'
                 )))
-            sleep(1)
+            
             location.clear()
-            sleep(1)
+            
             logging.info("Updating location...")
 
             location.send_keys(posting_info['location'])
-            sleep(1)
+            
 
             posting_sum.select_by_visible_text("Tax included")
             logging.info("Change to Tax included...")
@@ -633,7 +579,7 @@ def get_invoice_text(vendor, invoice_num):
                 )))
             logging.info(save_btn)
 
-            sleep(3)
+            
             # logging.info('Clicking save button...')
 
             driver.execute_script("arguments[0].click();", save_btn)
@@ -654,7 +600,7 @@ def get_invoice_text(vendor, invoice_num):
 
                 if 'class_code' in posting_info:
 
-                    sleep(1)
+                    
                     class_code = WebDriverWait(driver, 10).until(
                         EC.presence_of_element_located((
                             By.XPATH,
@@ -694,7 +640,7 @@ def get_invoice_text(vendor, invoice_num):
                     credit.clear()
                     credit.send_keys(
                         str(-posting_info['24_total']).replace('.', ','))
-                    sleep(1)
+                    
                 tax_code = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -726,7 +672,7 @@ def get_invoice_text(vendor, invoice_num):
 
             if 'class_code' in posting_info:
 
-                sleep(1)
+                
                 class_code = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -793,7 +739,7 @@ def get_invoice_text(vendor, invoice_num):
 
             if 'class_code' in posting_info:
 
-                sleep(1)
+                
                 class_code = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -843,7 +789,7 @@ def get_invoice_text(vendor, invoice_num):
                 )))
             driver.execute_script("arguments[0].click();", save_btn)
 
-        sleep(2)
+        
 
         driver.switch_to.default_content()
         driver.switch_to.frame(applicationframe)
@@ -853,7 +799,7 @@ def get_invoice_text(vendor, invoice_num):
                 (By.XPATH, '/html/body/form/div[3]/iframe')))
         logging.info(f'Action frame: {action_frame}')
 
-        sleep(3)
+        
 
         driver.switch_to.frame(action_frame)
 
@@ -864,11 +810,12 @@ def get_invoice_text(vendor, invoice_num):
 
         driver.execute_script("arguments[0].click();", ok_btn)
 
-        sleep(3)
+
+        
         driver.switch_to.default_content()
         driver.switch_to.frame(applicationframe)
         driver.switch_to.frame(mainframe)
-        sleep(5)
+        
         info_page_frame = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located(
                 (By.XPATH, '/html/body/div/div/div/div[1]/iframe')))
@@ -915,7 +862,7 @@ def get_invoice_text(vendor, invoice_num):
                         ))))
                 processor_list.select_by_visible_text(posting_info['approver'])
 
-                sleep(3)
+                
                 add_processor_btn = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((
                         By.XPATH,
@@ -982,11 +929,11 @@ if __name__ == '__main__':
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument('--disable-dev-shm-usage')
-    # chrome_options.add_argument('--disable-gpu')
+
 
     driver = webdriver.Chrome(options=chrome_options,
-                            #   executable_path=r'/usr/bin/chromedriver')
-                              executable_path=r'C:\Program Files\chromedriver.exe')
+                              executable_path=r'/usr/bin/chromedriver')
+                            #   executable_path=r'C:\Program Files\chromedriver.exe')
                             #   service=Service(ChromeDriverManager().install()))
     
     login(driver)
@@ -1009,7 +956,8 @@ if __name__ == '__main__':
 
             # If you want the full traceback, you can use:
             logging.error(e)
-
+            driver.quit()
+            sys.exit(1)
             # logging.error("\n\nRESTARTING NOW\n\n")
             # system("python restarter.py")
             # system('kill 1')
@@ -1018,7 +966,6 @@ if __name__ == '__main__':
             try:
                 filtered_df = filtered_df.drop(columns='vendor_id')
             except Exception as e: 
-                logging.error(f"An error occurred while dropping the column: {repr(e)}")
                 pass
             folder.upload_file(filtered_df.to_csv(index=False, sep=';'),
                                'bot_status.csv')

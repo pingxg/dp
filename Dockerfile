@@ -55,20 +55,20 @@ RUN wget https://github.com/papertrail/remote_syslog2/releases/download/v0.21/re
     && rm remote_syslog_linux_amd64.tar.gz
 
 
-# RUN apt-get update && apt-get install -y supervisor \
-#     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
 
-# # Assuming you have a configuration file for remote_syslog2 named remote_syslog.yml in your project directory
-# # Make sure this file configures remote_syslog2 to watch the correct log files and points to your Papertrail destination
-# COPY remote_syslog.yml /etc/log_files.yml
+# Assuming you have a configuration file for remote_syslog2 named remote_syslog.yml in your project directory
+# Make sure this file configures remote_syslog2 to watch the correct log files and points to your Papertrail destination
+COPY remote_syslog.yml /etc/log_files.yml
 
 
-# COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-# CMD ["/usr/bin/supervisord"]
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+CMD ["/usr/bin/supervisord"]
 
 # # Start remote_syslog in the background and then run your script
 # # Note: Adjust the CMD as necessary to start remote_syslog2 with your specific options if not using a config file
 # CMD remote_syslog -D --configfile /etc/log_files.yml
 
-CMD ["python", "/app/main.py"]
+# CMD ["python", "/app/main.py"]
