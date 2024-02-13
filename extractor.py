@@ -51,7 +51,6 @@ def info_extractor(text, vendor, location_master_data=master_location):
         "approver": "bw approver name"
         }
     """
-    print(text)
     text = text.replace('\n', ' ').replace('\r', '').lower()
     text = text.replace('(', ' ').replace(')', ' ')
     text = text.replace('/', ' ')
@@ -242,6 +241,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                                                                '.').strip())
                         for j in total_str
                     ]
+                    print(reduced_list)
 
                     output["14"] = reduced_list[1]
                     output["14_net"] = reduced_list[0]

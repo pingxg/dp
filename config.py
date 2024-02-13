@@ -16,7 +16,7 @@ def to_email_list(s):
 LOGGING_CONFIG = {
     'log_directory': os.getenv('LOG_DIRECTORY', 'logs'),
     'log_filename': os.getenv('LOG_FILENAME', 'application.log'),
-    'max_log_size': int(os.getenv('MAX_LOG_SIZE', 10485760)),  # Default 10 MB
+    'max_log_size': int(os.getenv('MAX_LOG_SIZE', 10485760)),
     'backup_count': int(os.getenv('BACKUP_COUNT', 5)),
     'log_level': os.getenv('LOG_LEVEL', 'INFO'),
     'log_notify_level': os.getenv('LOG_NOTIFY_LEVEL', 'ERROR'),
@@ -49,7 +49,6 @@ expressions = {
     "1578999": [
         "Oy Golden Crop AB",
         r"tax base amount vat ([- 0-9vat.%, €​]+)",
-        # r"tax rate base tax amount ([- 0-9vat.%, €​]+) huomioikaa uudet pankkitilit",
         "manager"
     ],
     "1394052": [
@@ -87,7 +86,6 @@ expressions = {
         "Yellow Service Oy Grönroos",
         r"verokanta veroton vero yhteensä ([-0-9 ,]+)", "manager"
     ],
-    # "1301716": ["AB Tingstad Papper", r"14% ([-0-9 ,]+)", "manager"],
     "1433275": [
         "Kesko Oyj",
         r"alv erittely veron peruste alv % vero verollinen ([-0-9 ,]+)",
@@ -95,7 +93,6 @@ expressions = {
     ],
     "1553180":
     ["Oy Hartwall Ab", r"alv-erittely verokanta([-0-9 ,%]+)", "manager"],
-    # "1313556": ["Dieta Oy", r"14% ([-0-9 ,]+)", "manager"],
     "2000211":
     ["Kungfu Pot Oy", r"yhteensäilman ([-0-9 ,%arvonlisävero]+)", "manager"],
     "2000224": [
