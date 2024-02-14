@@ -3,9 +3,9 @@ import io
 import sys
 import os
 from os import system
+import platform
 import datetime as dt
 import time
-
 from time import sleep
 import numpy as np
 import pandas as pd
@@ -22,7 +22,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.alert import Alert
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from contextlib import contextmanager
 from extractor import info_extractor, expressions
 import logging
@@ -58,9 +58,15 @@ def setup_driver(chrome_driver_path=None, download_path=TEMP_PATH):
     chrome_options = Options()
     prefs = {
         "download.default_directory": download_path,
-        "plugins.always_open_pdf_externally": True,
-        "download.prompt_for_download": False,
+        # "plugins.always_open_pdf_externally": True,
+        # "download.prompt_for_download": False,
+        "plugins.plugins_list": [{
+            "enabled": False,
+            "name": "Chrome PDF Viewer"
+        }],
         "download.extensions_to_open": "applications/pdf",
+        # "download.directory_upgrade": True,
+        "safebrowsing.enabled": True
     }
     chrome_options.add_experimental_option("prefs", prefs)
     chrome_options.add_argument('--no-sandbox')
@@ -68,12 +74,13 @@ def setup_driver(chrome_driver_path=None, download_path=TEMP_PATH):
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument('--disable-gpu')
+
     service = Service(chrome_driver_path) if chrome_driver_path else Service(ChromeDriverManager().install())
     return webdriver.Chrome(service=service, options=chrome_options)
 
 
 
-def wait_for_element(driver, locator, step_name='not specified', timeout=5, clickable=True):
+def wait_for_element(driver, locator, step_name='not specified', timeout=10, clickable=True):
     """
     Waits for an element to be present or clickable within a specified timeout.
 
@@ -128,7 +135,7 @@ def login(driver, username=os.getenv('bw_usr'), password=os.getenv('bw_psw'), lo
 
 
 
-def switch_to_iframe(driver, locator, timeout=5):
+def switch_to_iframe(driver, locator, timeout=10):
     """
     Waits for an iframe to be available and then switches to it.
 
@@ -279,7 +286,6 @@ def get_invoice_text(driver, vendor, invoice_num):
     elif vendor == "1301716":
         is_tingstad = True
         invoice_button = wait_for_element(driver(By.XPATH,'/html/body/div/form/div[4]/table/tbody/tr[2]/td[12]/a'), 'find invoice button for tingstad invoices').click()
-    # driver.execute_script("arguments[0].click();", invoice_button)
     
     try:
         driver.switch_to.default_content()
@@ -307,7 +313,10 @@ def get_invoice_text(driver, vendor, invoice_num):
     viewer_frame = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/iframe'), 'find the viewer frame', clickable=False)
     driver.switch_to.frame(viewer_frame)
 
-    save_button = wait_for_element(driver, (By.XPATH, 'html/body/div/div/a/button'), 'find the save attachement button and click', clickable=False).click()
+    try:
+        save_pdf_btn = wait_for_element(driver, (By.ID, 'open-button'), 'find the pdf attachement save btn', clickable=False).click()
+    except (NoSuchElementException, TimeoutException):
+        logging.info("Save PDF button not found or not clickable, but continuing since the file downloads successfully.")
 
     logging.info('Step: waiting for the pdf to be downloaded.')
     sleep(3)
@@ -539,8 +548,15 @@ def main():
     operational_data = get_inv_number(bot_input)
     filtered_df = operational_data[operational_data['status'].isin([np.nan, 'Failed'])]
 
-    driver = setup_driver(chrome_driver_path=r'C:\Program Files\chromedriver.exe')
     # driver = setup_driver(chrome_driver_path=r'/usr/bin/chromedriver')
+    # Check the operating system
+    if platform.system() == 'Windows':
+        # Windows path
+        chrome_driver_path = r'C:\Program Files\chromedriver.exe'
+    else:
+        # Assuming Linux for any non-Windows OS
+        chrome_driver_path = r'/usr/bin/chromedriver'
+    driver = setup_driver(chrome_driver_path=chrome_driver_path)
     login(driver)
 
     for index, row in filtered_df.iterrows():
