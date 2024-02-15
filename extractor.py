@@ -3,34 +3,42 @@
 import os
 import re
 import pandas as pd
+from dotenv import load_dotenv
+
 import pdfplumber
 from shareplum import Site
 from shareplum import Office365
 from shareplum.site import Version
+from config.re_pattern_config import get_expressions
+from services.sharepoint import download_file
 
-from dotenv import load_dotenv
 load_dotenv()
 
 TEMP_PATH = os.path.join(os.getcwd(), 'temp')
 
 DEBUG = False
 
-from config import get_expressions
 
 expressions = get_expressions()
 
-authcookie = Office365(os.getenv('office_site'),
-                       username=os.getenv('office_usn'),
-                       password=os.getenv('office_psw')).GetCookies()
-site = Site('https://oyspartao.sharepoint.com/sites/SpartaoFinance/',
-            version=Version.v365,
-            authcookie=authcookie)  # go to the finance site
-folder = site.Folder('Shared Documents/Master data/2.Master data own record'
-                     )  # open the folder path
-master_data = folder.get_file(
-    'Master Data.xlsx')  # read master data from sharepoint
-master_location = pd.read_excel(master_data,
-                                sheet_name="Location")  # read "Location" tab
+# authcookie = Office365(
+#     os.getenv('OFFICE_SITE'),
+#     username=os.getenv('OFFICE_USN'),
+#     password=os.getenv('OFFICE_PSW')
+#     ).GetCookies()
+
+# site = Site(
+#     os.getenv('SHAREPOINT_SITE'),
+#     version=Version.v365,
+#     authcookie=authcookie
+#     )  # go to the finance site
+
+# folder = site.Folder(os.getenv('MASTER_DATA_DIR'))  # open the folder path
+# master_data = folder.get_file(os.getenv('MASTER_DATA_FILENAME'))  # read master data from sharepoint
+
+
+master_data = download_file(os.getenv('MASTER_DATA_PATH'))
+master_location = pd.read_excel(master_data, sheet_name="Location")  # read "Location" tab
 
 
 def info_extractor(text, vendor, location_master_data=master_location):
@@ -174,8 +182,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
             for i in matches:
                 if i.group(1):
                     total_str = str(i.group(1).strip())
-                    reduced_str = re.sub(r"[^-0-9., ]", '',
-                                         total_str).split(" ")
+                    reduced_str = re.sub(r"[^-0-9., ]", '',total_str).split(" ")
                     value_list = []
                     for j in reduced_str:
                         if j != "":
