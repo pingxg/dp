@@ -86,7 +86,6 @@ def get_invoice_text(driver, vendor, invoice_num):
             save_pdf_btn = wait_for_element(driver, (By.ID, 'open-button'), 'find the pdf attachement save btn', clickable=False, silent=True).click()
         except (NoSuchElementException, TimeoutException):
             logging.debug("Save PDF button not found or not clickable, but continuing since the file downloads successfully.")
-        logging.info('Step: waiting for the pdf to be downloaded.')
         time.sleep(2)
         logging.info("Step: extacting the posting value.")
         text = read_pdf_text(file_type='pdf')
