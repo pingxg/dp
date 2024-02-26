@@ -2,25 +2,20 @@
 import io
 import os
 import logging
-import platform
 import time
 import datetime as dt
 
 import numpy as np
-import pandas as pd
 from dotenv import load_dotenv
-from shareplum import Site
-from shareplum import Office365
-from shareplum.site import Version
-from selenium.webdriver.support.ui import Select
 
+from selenium.webdriver.support.ui import Select
 from drivers.webdriver import setup_driver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.alert import Alert
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from config.logger_config import setup_logging
-
 from extractor import info_extractor, expressions
 from utils.pdf_utils import read_pdf_text
 from utils.file_utils import reset_folder
@@ -51,9 +46,12 @@ def get_inv_number(df):
     return df
 
 
-def filtering_invoice(driver, company="Spartao", status="All", supplier=False, invoice_num=False):
-    purchase_invoices = wait_for_element(driver, (By.ID, 'Menu1-menuItem003'), "navigate to purchase invoices").click()
+def nav_to_purchase_invoice(driver):
+    purchase_invoices = wait_for_element(driver, (By.ID, 'Menu1-menuItem003'), "navigate to purchase invoices")
+    action = ActionChains(driver).move_to_element(purchase_invoices).perform()
     process_purchase_invoices = wait_for_element(driver, (By.XPATH, '/html/body/form/table[4]/tbody/tr[2]/td/table/tbody/tr/td[1]'), 'navigate to process purchase invoices').click()
+
+def filtering_invoice(driver, company="Spartao", status="All", supplier=False, invoice_num=False):
 
     with iframe_context(driver, 'main_iframe'):
         select_company = Select(wait_for_element(driver, (By.XPATH, "/html/body/div/form/div[3]/div[1]/select"), 'change company selection to all', clickable=False)).select_by_visible_text(company)
@@ -65,15 +63,32 @@ def filtering_invoice(driver, company="Spartao", status="All", supplier=False, i
         update_btn = wait_for_element(driver, (By.XPATH, "/html/body/div/form/div[3]/div[6]/input"), 'find update button and click').click()
 
 
+def try_click_invoice_button(driver, vendor, invoice_num, statuses=["Data Incomplete", "All"]):
+    """
+    Attempts to click on the invoice button for given statuses.
+    """
+    # Loop through statuses
+    for status in statuses:
+        try:
+            filtering_invoice(driver, supplier=vendor, status=status, invoice_num=invoice_num)
+            with iframe_context(driver, 'main_iframe'):
+                # Determine the correct XPATH based on the status
+                xpath = '/html/body/div/form/div[4]/table/tbody/tr[2]/td[11]/a' if status == "All" else '/html/body/div/form/div[4]/table/tbody/tr[2]/td[12]/a'
+                invoice_button = wait_for_element(driver, (By.XPATH, xpath), f'attempting find invoice button with status {status}')
+                invoice_button.click()
+                return True  # Stop trying after successful click
+        except Exception as e:
+            logging.error(f"Attempt with status '{status}' failed.")
+
+    # If we reach this point, all attempts have failed
+    logging.error(f"Failed to find the invoice button for invoice number: {invoice_num}")
+    return False
+
+
 def get_invoice_text(driver, vendor, invoice_num):
-    filtering_invoice(driver, supplier=vendor, invoice_num=invoice_num)
-    with iframe_context(driver, 'main_iframe'):
-        if vendor != "1301716":
-            is_tingstad = False
-            invoice_button = wait_for_element(driver, (By.XPATH, '/html/body/div/form/div[4]/table/tbody/tr[2]/td[11]/a'), 'find invoice button for non-tingstad invoices').click()
-        elif vendor == "1301716":
-            is_tingstad = True
-            invoice_button = wait_for_element(driver(By.XPATH,'/html/body/div/form/div[4]/table/tbody/tr[2]/td[12]/a'), 'find invoice button for tingstad invoices').click()
+    nav_to_purchase_invoice(driver)
+    try_click_invoice_button(driver, vendor, invoice_num)
+
     try:
         with iframe_context(driver, 'error_iframe'):
             override_lock_status_button = wait_for_element(driver, (By.XPATH, '/html/body/div/div[4]/input[1]'), 'try to override the lock frame and click', silent=True).click()
@@ -100,8 +115,10 @@ def get_invoice_text(driver, vendor, invoice_num):
 
     with iframe_context(driver, 'info_iframe'):
         if vendor == "1381774":
-            due_date = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[14]/td[2]/div[1]/div/div/input'), 'modifing the S-Card due date to current date').clear().send_keys(dt.datetime.today().strftime("%d.%m.%Y"))
-        post_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]'), 'find the post button and click').click()
+            due_date = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[14]/td[2]/div[1]/div/div/input'), 'modifing the S-Card due date to current date').send_keys(dt.datetime.today().strftime("%d.%m.%Y"))
+        if vendor == "1301716":
+            ref_field =  wait_for_element(driver, (By.ID, 'ReferenceCtrl'), 'find the ref number and clear the field').clear()
+            msg_field = wait_for_element(driver, (By.ID, 'MessageCtrl'), 'find the ref number and clear the field').send_keys(invoice_num)
 
     try:
         with iframe_context(driver, 'error_iframe'):
@@ -110,103 +127,119 @@ def get_invoice_text(driver, vendor, invoice_num):
     except:
         pass
 
-    with iframe_context(driver, 'action_iframe'):
-        delete_posting = wait_for_element(driver, (By.ID, 'DeletePostingButton'), 'click delete posting value').click()
-        alert = Alert(driver).accept()
+    if 'approver' in posting_info.keys():
+        with iframe_context(driver, 'info_iframe'):
+            if 'approver' in posting_info:
+                logging.info("Updating approver.")
+                processor_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[5]/input[2]'), 'find the processor button and click').click()
 
-    with iframe_context(driver, 'posting_iframe'):
-        posting_sum = Select(wait_for_element(driver, (By.ID, "PostingControl1_VATHandlingCtrl"), 'find the posting sum'))
-        if 'location' in posting_info:
-            if posting_info['location'] == 'L102':
-                posting_info['department'] = 'D4'
-            elif posting_info['location'] == 'L101':
-                posting_info['department'] = 'D208'
-                posting_info['class_code'] = 'C7'
-            elif posting_info['location'] == 'L76':
-                posting_info['department'] = 'D208'
-            elif posting_info['location'] == 'L67':
-                posting_info['department'] = 'D208'
-                posting_info['class_code'] = 'C1'
-            elif posting_info['location'] == 'L73':
-                posting_info['department'] = 'D208'
-                posting_info['class_code'] = 'C1'
-            elif posting_info['location'] == 'L72':
-                posting_info['department'] = 'D208'
-                posting_info['class_code'] = 'C1'
-                if 'department' in posting_info:
-                    department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'update department').send_keys(posting_info['department'])
+        with iframe_context(driver, 'dialog_iframe'):
+            current_processor_select = Select(wait_for_element(driver, (By.XPATH,"/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[3]/div/select"), 'find the current processor select'))
+            reset_processor = True
+            for option in current_processor_select.options:
+                if option.text == f"Approve: {posting_info['approver']}":
+                    reset_processor = False
+                    cancel_btn = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[4]/input[2]'), 'find the cancel button and click').click()
+            if reset_processor:
+                processor_list = Select(wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[1]/div/select'), 'find the processor list'))
+                processor_list.select_by_visible_text(posting_info['approver'])
+                add_processor_btn = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[2]/table/tbody/tr[1]/td/table/tbody/tr[1]/td/input'), 'find the add processor button and click').click()
+                conform_processor = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[4]/input[1]'), 'find the conform processor button and click').click()
 
-                if 'class_code' in posting_info:
-                    class_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'update class').send_keys(posting_info['class_code'])
-                location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'update location').send_keys(posting_info['location'])
+    with iframe_context(driver, 'info_iframe'):
+        post_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]'), 'find the post button and click').click()
 
-            if '14' in posting_info:
-                logging.info("Updating 14% row.")
-                if 'department' in posting_info:
-                    department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'updating 14% department').send_keys(posting_info['department'])
-                if 'class_code' in posting_info:
-                    class_code =  wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'updating 14% class').send_keys(posting_info['class_code'])
-                location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'updating 14% location').send_keys(posting_info['location'])
-                logging.info("Change to Tax included.")
-                posting_sum.select_by_visible_text("Tax included")
-                if posting_info['14_total'] >= 0:
-                    debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[7]/input'), 'updating 14% debit amount').send_keys(str(posting_info['14_total']).replace('.', ','))
-                elif posting_info['14_total'] < 0:
-                    credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[8]/input'), 'updating 14% credit amount').send_keys(str(-posting_info['14_total']).replace('.', ','))
-                tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 14% tax code').send_keys('8')
-                save_btn = wait_for_element(driver, (By.XPATH, "/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[9]/a[1]"), 'find the save button and click').click()
 
-                if '24' in posting_info:
+
+    try:
+        with iframe_context(driver, 'action_iframe'):
+            delete_posting = wait_for_element(driver, (By.ID, 'DeletePostingButton'), 'click delete posting value').click()
+            alert = Alert(driver).accept()
+    except:
+        logging.info(f"Posting values are empty, no need to delete posting.")
+        pass
+    if vendor != "1301716":
+        with iframe_context(driver, 'posting_iframe'):
+            posting_sum = Select(wait_for_element(driver, (By.ID, "PostingControl1_VATHandlingCtrl"), 'find the posting sum'))
+            if 'location' in posting_info:
+                if posting_info['location'] == 'L102':
+                    posting_info['department'] = 'D4'
+                elif posting_info['location'] == 'L101':
+                    posting_info['department'] = 'D208'
+                    posting_info['class_code'] = 'C7'
+                elif posting_info['location'] == 'L76':
+                    posting_info['department'] = 'D208'
+                elif posting_info['location'] == 'L67':
+                    posting_info['department'] = 'D208'
+                    posting_info['class_code'] = 'C1'
+                elif posting_info['location'] == 'L73':
+                    posting_info['department'] = 'D208'
+                    posting_info['class_code'] = 'C1'
+                elif posting_info['location'] == 'L72':
+                    posting_info['department'] = 'D208'
+                    posting_info['class_code'] = 'C1'
                     if 'department' in posting_info:
-                        department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[2]/div/div/input'), 'updating 24% department').send_keys(posting_info['department'])
+                        department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'update department').send_keys(posting_info['department'])
+
                     if 'class_code' in posting_info:
-                        class_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[4]/div/div/input'), 'updating 24% class').send_keys(posting_info['class_code'])
-                    location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[3]/div/div/input'), 'updating 24% location').send_keys(posting_info['location'])
+                        class_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'update class').send_keys(posting_info['class_code'])
+                    location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'update location').send_keys(posting_info['location'])
+
+                if '14' in posting_info:
+                    logging.info("Updating 14% row.")
+                    if 'department' in posting_info:
+                        department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'updating 14% department').send_keys(posting_info['department'])
+                    if 'class_code' in posting_info:
+                        class_code =  wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'updating 14% class').send_keys(posting_info['class_code'])
+                    location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'updating 14% location').send_keys(posting_info['location'])
+                    logging.info("Change to Tax included.")
+                    posting_sum.select_by_visible_text("Tax included")
+                    if posting_info['14_total'] >= 0:
+                        debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[7]/input'), 'updating 14% debit amount').send_keys(str(posting_info['14_total']).replace('.', ','))
+                    elif posting_info['14_total'] < 0:
+                        credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[8]/input'), 'updating 14% credit amount').send_keys(str(-posting_info['14_total']).replace('.', ','))
+                    tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 14% tax code').send_keys('8')
+                    save_btn = wait_for_element(driver, (By.XPATH, "/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[9]/a[1]"), 'find the save button and click').click()
+
+                    if '24' in posting_info:
+                        if 'department' in posting_info:
+                            department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[2]/div/div/input'), 'updating 24% department').send_keys(posting_info['department'])
+                        if 'class_code' in posting_info:
+                            class_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[4]/div/div/input'), 'updating 24% class').send_keys(posting_info['class_code'])
+                        location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[3]/div/div/input'), 'updating 24% location').send_keys(posting_info['location'])
+                        if posting_info['24_total'] >= 0:
+                            debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[7]/input'), 'updating 24% debit amount').send_keys(str(posting_info['24_total']).replace('.', ','))
+                        elif posting_info['24_total'] < 0:
+                            credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[8]/input'), 'updating 24% credit amount').send_keys(str(-posting_info['24_total']).replace('.', ','))
+                        tax_code = wait_for_element(driver, (By.XPATH,'/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[5]/div/div/input'), 'updating 24% tax code').send_keys('6')
+                        save_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[9]/a[1]'), 'find the save button and click').click()
+
+                if '24' in posting_info and '14' not in posting_info:
+                    if 'department' in posting_info:
+                        department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'updating 24% department only').send_keys(posting_info['department'])
+                    if 'class_code' in posting_info:
+                        class_code = wait_for_element(driver, (By.XPATH,'/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'updating 24% class only').send_keys(posting_info['class_code'])
+                    location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'updating 24% class only').send_keys(posting_info['location'])
+                    posting_sum.select_by_visible_text("Tax included")
+
                     if posting_info['24_total'] >= 0:
-                        debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[7]/input'), 'updating 24% debit amount').send_keys(str(posting_info['24_total']).replace('.', ','))
+                        debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[7]/input'), 'updating 24% debit amount only').send_keys(str(posting_info['24_total']).replace('.', ','))
                     elif posting_info['24_total'] < 0:
-                        credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[8]/input'), 'updating 24% credit amount').send_keys(str(-posting_info['24_total']).replace('.', ','))
-                    tax_code = wait_for_element(driver, (By.XPATH,'/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[5]/div/div/input'), 'updating 24% tax code').send_keys('6')
-                    save_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[9]/a[1]'), 'find the save button and click').click()
+                        credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[8]/input'), 'updating 24% credit amount only').send_keys(str(-posting_info['24_total']).replace('.', ','))
+                    tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 24% tax code only').send_keys('6')
+                    
 
-            if '24' in posting_info and '14' not in posting_info:
-                if 'department' in posting_info:
-                    department = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[2]/div/div/input'), 'updating 24% department only').send_keys(posting_info['department'])
-                if 'class_code' in posting_info:
-                    class_code = wait_for_element(driver, (By.XPATH,'/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[4]/div/div/input'), 'updating 24% class only').send_keys(posting_info['class_code'])
-                location = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[3]/div/div/input'), 'updating 24% class only').send_keys(posting_info['location'])
-                posting_sum.select_by_visible_text("Tax included")
-
-                if posting_info['24_total'] >= 0:
-                    debit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[7]/input'), 'updating 24% debit amount only').send_keys(str(posting_info['24_total']).replace('.', ','))
-                elif posting_info['24_total'] < 0:
-                    credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[8]/input'), 'updating 24% credit amount only').send_keys(str(-posting_info['24_total']).replace('.', ','))
-                tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 24% tax code only').send_keys('6')
-                save_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[9]/a[1]'), 'find the save button and click').click()
-
+    if vendor == "1301716":
+        with iframe_context(driver, 'posting_iframe'):
+            save_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[9]/a[1]'), 'find the save button and click').click()
 
     with iframe_context(driver, 'action_iframe'):
         ok_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/input[1]'), 'find the OK button and click').click()
 
-    with iframe_context(driver, 'info_iframe'):
-        if 'approver' in posting_info:
-            logging.info("Updating approver.")
-            processor_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[5]/input[2]'), 'find the processor button and click').click()
-    with iframe_context(driver, 'dialog_iframe'):
-        current_processor_select = Select(wait_for_element(driver, (By.XPATH,"/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[3]/div/select"), 'find the current processor select'))
-        reset_processor = True
-        for option in current_processor_select.options:
-            if option.text == f"Approve: {posting_info['approver']}":
-                reset_processor = False
-                cancel_btn = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[4]/input[2]'), 'find the cancel button and click').click()
-        if reset_processor:
-            processor_list = Select(wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[1]/div/select'), 'find the processor list'))
-            processor_list.select_by_visible_text(posting_info['approver'])
-            add_processor_btn = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[3]/table/tbody/tr[2]/td[2]/table/tbody/tr[1]/td/table/tbody/tr[1]/td/input'), 'find the add processor button and click').click()
-            conform_processor = wait_for_element(driver, (By.XPATH, '/html/body/div/div[2]/form/div[4]/input[1]'), 'find the conform processor button and click').click()
+
     with iframe_context(driver, 'info_iframe'):
         save_inv_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[1]'), 'find the save invoice button and click').click()
-    logging.info(f'Invoice {invoice_num} from {expressions[vendor][0]} has been processed successfully!')
+
     return True
 
 def main():
@@ -228,9 +261,11 @@ def main():
                     reset_folder(os.path.join(os.getcwd(), os.getenv('TEMP_DIRECTORY', 'temp')))
                     get_invoice_text(driver=driver, vendor=row['vendor'].split(" / ")[-1], invoice_num=row['invoice_num'])
                     filtered_df.at[index, 'status'] = 'Success'
+                    logging.info(f"Invoice {row['invoice_num']} from {row['vendor']} has been processed successfully!")
+
             except Exception as e:
                 filtered_df.at[index, 'status'] = 'Failed'
-                logging.error(e)
+                logging.error(f"Invoice {row['invoice_num']} from {row['vendor']} failed! Error message: {e}")
             finally:
                 try:
                     filtered_df = filtered_df.drop(columns='vendor_id')
