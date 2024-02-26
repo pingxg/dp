@@ -372,9 +372,10 @@ def info_extractor(text, vendor, location_master_data=master_location):
                     output["14_total"] = total_str[7]
 
         elif vendor == "1301716":
-            for i in matches:
-                total_str = i.group(1).strip().replace(",", ".").split(" ")
-                total_str = [float(i) for i in total_str]
+            # for i in matches:
+            #     total_str = i.group(1).strip().replace(",", ".").split(" ")
+            #     total_str = [float(i) for i in total_str]
+                pass
         elif vendor == "1566645":
             for i in matches:
                 total_str = i.group(1).strip().replace(",", ".").split(" ")
@@ -389,6 +390,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                 total_str = [
                     i.strip() for i in total_str if i != "" and i != " "
                 ]
+
                 for i in total_str:
                     if "0 % " in i:
                         output["0"] = float(i.replace("0 % ", ""))
@@ -401,15 +403,18 @@ def info_extractor(text, vendor, location_master_data=master_location):
                             i.replace("a ", "").replace(" ", ""))
                 if "net" in output and "24" not in output:
                     output["14_net"] = output["net"]
-                    output["14_total"] = output["14_net"] + output["14"]
+                    output["14_total"] = round(output["14_net"] + output["14"], 2)
+
                 if "net" in output and "14" not in output:
                     output["24_net"] = output["net"]
-                    output["24_total"] = output["24_net"] + output["24"]
+                    output["24_total"] = round(output["24_net"] + output["24"], 2)
+
                 if "net" in output and "14" in output and "24" in output:
-                    output["24_net"] = output["24"] / 0.24
-                    output["14_net"] = output["net"] - output["24"]
-                    output["14_total"] = output["14_net"] + output["14"]
-                    output["24_total"] = output["24_net"] + output["24"]
+                    output["24_net"] = round(output["24"] / 0.24, 2)
+                    output["14_net"] = round(output["net"] - output["24_net"], 2)  # Adjusted to ensure correctness
+                    output["14_total"] = round(output["14_net"] + output["14"], 2)
+                    output["24_total"] = round(output["24_net"] + output["24"], 2)
+
 
         elif vendor == "1357805" or vendor == "2000219":
             for i in matches:
@@ -419,13 +424,13 @@ def info_extractor(text, vendor, location_master_data=master_location):
                         output["14_net"] = float(total_str[j + 1])
                         output["14"] = float(total_str[j + 3])
                         output["14_total"] = output["14_net"] + output["14"]
+                        output["14_total"] = round(output["14_total"], 2)
                     elif total_str[j] == "24%":
                         output["24_net"] = float(total_str[j + 1])
                         output["24"] = float(total_str[j + 3])
                         output["24_total"] = output["24_net"] + output["24"]
-
+                        output["24_total"] = round(output["24_total"], 2)
         myDict = {key: val for key, val in output.items() if val != 0}
-
     except:
         return "Check your input vendor information!"
     return myDict
