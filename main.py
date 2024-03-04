@@ -114,8 +114,8 @@ def get_invoice_text(driver, vendor, invoice_num):
         select_org_unit_btn = wait_for_element(driver, (By.XPATH, "/html/body/div/div[2]/form/div[4]/input[1]"), 'select the default org unit').click()
 
     with iframe_context(driver, 'info_iframe'):
-        if vendor == "1381774":
-            due_date = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[14]/td[2]/div[1]/div/div/input'), 'modifing the S-Card due date to current date').send_keys(dt.datetime.today().strftime("%d.%m.%Y"))
+        if vendor == "1381774" or vendor == "1433275":
+            due_date = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[1]/div[2]/table/tbody/tr[14]/td[2]/div[1]/div/div/input'), 'modifing the S-Card/Kesko invoices due date to current date').send_keys(dt.datetime.today().strftime("%d.%m.%Y"))
         if vendor == "1301716":
             ref_field =  wait_for_element(driver, (By.ID, 'ReferenceCtrl'), 'find the ref number and clear the field').clear()
             msg_field = wait_for_element(driver, (By.ID, 'MessageCtrl'), 'find the ref number and clear the field').send_keys(invoice_num)
@@ -229,10 +229,9 @@ def get_invoice_text(driver, vendor, invoice_num):
                     tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 24% tax code only').send_keys('6')
                     
 
-    if vendor == "1301716":
+    if vendor == "1301716" or vendor == "1367729":
         with iframe_context(driver, 'posting_iframe'):
             save_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[9]/a[1]'), 'find the save button and click').click()
-
     with iframe_context(driver, 'action_iframe'):
         ok_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/input[1]'), 'find the OK button and click').click()
 
