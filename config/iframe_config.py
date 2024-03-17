@@ -21,8 +21,8 @@ IFRAME_HIERARCHY = {
                         'children': {}
                     },
                     'attachment_iframe': {
-                        # 'locator': (By.ID, 'attachmentPage'),
-                        'locator': (By.ID, 'AttachmentFrame'),
+                        'locator': (By.ID, 'attachmentPage'),
+                        # 'locator': (By.ID, 'AttachmentFrame'),
                         'name': 'Attachment Frame',
                             'children': {
                                 'viewer_iframe': {
