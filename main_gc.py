@@ -90,6 +90,37 @@ def try_click_invoice_button(driver, invoice_num):
     return False
 
 
+def rename_most_recent_file(directory, new_name_base):
+    # Ensure the directory exists
+    if not os.path.isdir(directory):
+        print("Directory does not exist.")
+        return
+
+    # Get all files in the directory
+    files = [os.path.join(directory, f) for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    
+    if not files:
+        print("No files found in the directory.")
+        return
+    
+    # Find the most recently added or modified file
+    most_recent_file = max(files, key=os.path.getmtime)
+    
+    # Generate a timestamp
+    timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+    
+    # Extract the file extension
+    _, extension = os.path.splitext(most_recent_file)
+    
+    # Construct the new file name
+    new_file_name = f"{new_name_base}_{timestamp}{extension}"
+    new_file_path = os.path.join(directory, new_file_name)
+    
+    # Rename the most recent file
+    os.rename(most_recent_file, new_file_path)
+    print(f"Renamed {os.path.basename(most_recent_file)} to {os.path.basename(new_file_path)}")
+
+
 def get_invoice_pdf(driver, vendor, invoice_num):
     nav_to_archive(driver)
     filtering_archive(driver, invoice_num=invoice_num)
@@ -108,7 +139,8 @@ def get_invoice_pdf(driver, vendor, invoice_num):
             save_pdf_btn = wait_for_element(driver, (By.ID, 'open-button'), 'find the pdf attachement save btn', clickable=False, silent=True).click()
         except (NoSuchElementException, TimeoutException):
             logging.debug("Save PDF button not found or not clickable, but continuing since the file downloads successfully.")
-        time.sleep(2)
+        time.sleep(1)
+        rename_most_recent_file('/app/temp', 'INV')
 
 
 def main():

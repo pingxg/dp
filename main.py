@@ -270,7 +270,7 @@ def main():
                     filtered_df = filtered_df.drop(columns='vendor_id')
                 except Exception as e: 
                     pass
-                upload_invoice_data(filtered_df, 'bot_status.csv')
+                upload_invoice_data(filtered_df)
 
 
 
