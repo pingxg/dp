@@ -263,6 +263,9 @@ def main():
                     logging.info(f"Invoice {row['invoice_num']} from {row['vendor']} has been processed successfully!")
 
             except Exception as e:
+                timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+                screenshot_path = os.path.join(os.getcwd(), os.getenv('TEMP_DIRECTORY', 'temp'), f"screenshot_{timestamp}.png")
+                driver.save_screenshot(screenshot_path)
                 filtered_df.at[index, 'status'] = 'Failed'
                 logging.error(f"Invoice {row['invoice_num']} from {row['vendor']} failed! Error message: {e}")
             finally:
