@@ -149,6 +149,12 @@ def get_invoice_text(driver, vendor, invoice_num):
     with iframe_context(driver, 'info_iframe'):
         post_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[3]'), 'find the post button and click').click()
 
+    try:
+        with iframe_context(driver, 'error_iframe'):
+            next_time_check = wait_for_element(driver, (By.XPATH, '/html/body/div/div[3]/span/label'), 'find the show next time check and click', silent=True).click()
+            next_ok_btn = wait_for_element(driver, (By.XPATH, '//*[@id="yesbutton"]'), 'find the don\'t show next time check and click', silent=True).click()
+    except:
+        pass
 
 
     try:
@@ -236,9 +242,16 @@ def get_invoice_text(driver, vendor, invoice_num):
         ok_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/input[1]'), 'find the OK button and click').click()
 
 
+    try:
+        with iframe_context(driver, 'error_iframe'):
+            next_time_check = wait_for_element(driver, (By.XPATH, '/html/body/div/div[3]/span/label'), 'find the show next time check and click', silent=True).click()
+            next_ok_btn = wait_for_element(driver, (By.XPATH, '//*[@id="yesbutton"]'), 'find the don\'t show next time check and click', silent=True).click()
+    except:
+        pass
+
+
     with iframe_context(driver, 'info_iframe'):
         save_inv_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[1]'), 'find the save invoice button and click').click()
-
     return True
 
 def main():
@@ -264,7 +277,7 @@ def main():
 
             except Exception as e:
                 timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-                screenshot_path = os.path.join(os.getcwd(), os.getenv('TEMP_DIRECTORY', 'temp'), f"screenshot_{timestamp}.png")
+                screenshot_path = os.path.join(os.getcwd(), f"screenshot_{timestamp}.png")
                 driver.save_screenshot(screenshot_path)
                 filtered_df.at[index, 'status'] = 'Failed'
                 logging.error(f"Invoice {row['invoice_num']} from {row['vendor']} failed! Error message: {e}")

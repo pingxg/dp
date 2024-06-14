@@ -5,6 +5,7 @@ from shareplum import Office365
 from shareplum.site import Version
 import pandas as pd
 import logging
+from io import StringIO
 
 def get_site():
     """
@@ -66,8 +67,11 @@ def upload_invoice_data(df, file_name='bot_status.csv'):
 
         # Convert DataFrame to CSV string
         csv_data = df.to_csv(index=False, sep=';')
-        folder.upload_file(csv_data, file_name)
+        csv_bytes = StringIO(csv_data).getvalue().encode('utf-8')
+
+        # Upload the file to SharePoint
+        folder.upload_file(csv_bytes, file_name)
 
         logging.info(f"Successfully uploaded '{file_name}' to SharePoint.")
     except Exception as e:
-        logging.error(f"Failed to upload '{file_name}' to SharePoint: {e}")
+        logging.error(f"Failed to upload '{file_name}' to SharePoint: {e}", exc_info=True)
