@@ -233,7 +233,13 @@ def get_invoice_text(driver, vendor, invoice_num):
                     elif posting_info['24_total'] < 0:
                         credit = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[8]/input'), 'updating 24% credit amount only').send_keys(str(-posting_info['24_total']).replace('.', ','))
                     tax_code = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input'), 'updating 24% tax code only').send_keys('6')
-                    
+
+    try:
+        with iframe_context(driver, 'error_iframe'):
+            next_time_check = wait_for_element(driver, (By.XPATH, '/html/body/div/div[3]/span/label'), 'find the show next time check and click', silent=True).click()
+            next_ok_btn = wait_for_element(driver, (By.XPATH, '//*[@id="yesbutton"]'), 'find the don\'t show next time check and click', silent=True).click()
+    except:
+        pass
 
     if vendor == "1301716" or vendor == "1367729":
         with iframe_context(driver, 'posting_iframe'):
@@ -289,7 +295,5 @@ def main():
                 upload_invoice_data(filtered_df)
 
 
-
 if __name__ == '__main__':
     main()
-
