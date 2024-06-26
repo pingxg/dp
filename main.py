@@ -252,6 +252,7 @@ def get_invoice_text(driver, vendor, invoice_num):
         with iframe_context(driver, 'error_iframe'):
             next_time_check = wait_for_element(driver, (By.XPATH, '/html/body/div/div[3]/span/label'), 'find the show next time check and click', silent=True).click()
             next_ok_btn = wait_for_element(driver, (By.XPATH, '//*[@id="yesbutton"]'), 'find the don\'t show next time check and click', silent=True).click()
+            next_ok_btn_ = wait_for_element(driver, (By.XPATH, '/html/body/div/div[5]/input'), 'find the don\'t show next time check and click', silent=True).click()
     except:
         pass
 
@@ -259,6 +260,7 @@ def get_invoice_text(driver, vendor, invoice_num):
     with iframe_context(driver, 'info_iframe'):
         save_inv_btn = wait_for_element(driver, (By.XPATH, '/html/body/form/div[3]/div[2]/input[1]'), 'find the save invoice button and click').click()
     return True
+
 
 def main():
     load_dotenv()
