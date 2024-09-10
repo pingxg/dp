@@ -24,13 +24,8 @@ RUN apt update -y && apt install -y \
 RUN mkdir -p /app/logs && touch /app/logs/application.log
 
 
-
 RUN apt-get update && apt-get install -y supervisor \
     && rm -rf /var/lib/apt/lists/*
-
-# Copy the supervisord config file to /etc/supervisor/conf.d/
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-# CMD ["/usr/bin/supervisord"]
 
 
 CMD ["python3", "main.py"]

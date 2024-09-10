@@ -1,5 +1,6 @@
 from selenium.webdriver.remote.webelement import WebElement
 
+
 # Define a new class that extends WebElement
 class CustomWebElement(WebElement):
     def send_keys(self, keys):

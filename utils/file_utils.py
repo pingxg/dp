@@ -2,17 +2,21 @@ import os
 import time
 import shutil
 
-def delete_file_by_type(path=None, file_type='pdf'):
+
+def delete_file_by_type(path=None, file_type="pdf"):
     """Deletes files of a given type in the provided path.
 
     Parameters:
-    - path (str): The path to delete files from. Defaults to TEMP_PATH. 
+    - path (str): The path to delete files from. Defaults to TEMP_PATH.
     - file_type (str): The file extension/type to delete. Defaults to 'pdf'.
     """
     files = [f for f in os.listdir(path)]
-    files = list(filter(lambda f: f.endswith((f'.{file_type}', f'.{file_type.upper()}')),files))
+    files = list(
+        filter(lambda f: f.endswith((f".{file_type}", f".{file_type.upper()}")), files)
+    )
     for i in files:
         os.remove(os.path.join(path, i))
+
 
 def reset_folder(path=None):
     """Deletes the contents of the provided folder path and recreates the folder.
