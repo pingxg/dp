@@ -55,9 +55,4 @@ IFRAME_HIERARCHY = {
         "name": "Dialog Frame",
         "children": {},
     },
-    # 'processor_iframe': {
-    #     'locator': (By.XPATH, '/html/body/div[3]/div/iframe'),
-    #     'name': 'Processor Frame',
-    #     'children': {},
-    # },
 }
