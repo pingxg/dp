@@ -332,15 +332,13 @@ def get_invoice_text(driver, vendor, invoice_num):
                     posting_info["class_code"] = "C7"
                 elif posting_info["location"] == "L76":
                     posting_info["department"] = "D208"
-                elif posting_info["location"] == "L67":
+                elif posting_info["location"] == "L67" or posting_info["location"] == "L72" or posting_info["location"] == "L531":
                     posting_info["department"] = "D208"
                     posting_info["class_code"] = "C9"
                 elif posting_info["location"] == "L73":
                     posting_info["department"] = "D208"
                     posting_info["class_code"] = "C1"
-                elif posting_info["location"] == "L72":
-                    posting_info["department"] = "D208"
-                    posting_info["class_code"] = "C9"
+
                     if "department" in posting_info:
                         department = wait_for_element(
                             driver,
