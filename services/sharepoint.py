@@ -31,7 +31,7 @@ def download_csv_data(file_name="bot_status.csv"):
     """
     try:
         site = get_site()
-        folder = site.Folder("Shared Documents")
+        folder = site.Folder("Shared Documents/Tools")
         response = folder.get_file(file_name)
 
         # Assuming the file is a CSV for this example
@@ -69,7 +69,7 @@ def upload_invoice_data(df, file_name="bot_status.csv"):
     """
     try:
         site = get_site()
-        folder = site.Folder("Shared Documents")
+        folder = site.Folder("Shared Documents/Tools")
 
         # Convert DataFrame to CSV string
         csv_data = df.to_csv(index=False, sep=";")
