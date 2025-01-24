@@ -606,6 +606,19 @@ def get_invoice_text(driver, vendor, invoice_num):
                 "find the don't show next time check and click",
                 silent=True,
             ).click()
+            one_way_request_checkbox = wait_for_element(
+                driver,
+                (By.ID, "onewayrequestcheckboxtext"),
+                "find the one way request checkbox and click",
+                silent=True,
+            ).click()
+            time.sleep(1)
+            ok_btn = wait_for_element(
+                driver,
+                (By.XPATH, "/html/body/div/div[5]/input"),
+                "find the OK button and click",
+                silent=True,
+            ).click()
     except:
         pass
 
