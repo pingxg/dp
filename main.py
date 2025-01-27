@@ -278,7 +278,8 @@ def get_invoice_text(driver, vendor, invoice_num):
                     driver,
                     (By.XPATH, "/html/body/div/div[2]/form/div[4]/input[1]"),
                     "find the conform processor button and click",
-                ).click()
+                )
+                driver.execute_script("arguments[0].click();", conform_processor)
 
     with iframe_context(driver, "info_iframe"):
         post_btn = wait_for_element(
