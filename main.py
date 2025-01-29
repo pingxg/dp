@@ -279,7 +279,12 @@ def get_invoice_text(driver, vendor, invoice_num):
                     (By.XPATH, "/html/body/div/div[2]/form/div[4]/input[1]"),
                     "find the conform processor button and click",
                 )
-                driver.execute_script("arguments[0].click();", conform_processor)
+                from selenium.webdriver.common.action_chains import ActionChains
+                actions = ActionChains(driver)
+                actions.move_to_element(conform_processor).click().perform()
+
+
+    time.sleep(20)
 
     with iframe_context(driver, "info_iframe"):
         post_btn = wait_for_element(
@@ -294,13 +299,13 @@ def get_invoice_text(driver, vendor, invoice_num):
                 driver,
                 (By.XPATH, "/html/body/div/div[3]/span/label"),
                 "find the show next time check and click",
-                silent=True,
+                silent=False,
             ).click()
             next_ok_btn = wait_for_element(
                 driver,
                 (By.XPATH, '//*[@id="yesbutton"]'),
                 "find the don't show next time check and click",
-                silent=True,
+                silent=False,
             ).click()
     except:
         pass
