@@ -1,5 +1,5 @@
 # Use Python 3.10 on Ubuntu as the base image
-FROM python:3.10
+FROM python:3.10-bookworm
 
 # Set the working directory in the container
 WORKDIR /app

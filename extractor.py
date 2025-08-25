@@ -18,8 +18,8 @@ DEBUG = False
 
 expressions = get_expressions()
 
-master_data = download_file(os.getenv("MASTER_DATA_PATH"))
-master_location = pd.read_excel(master_data, sheet_name="Location")
+# master_data = download_file(os.getenv("MASTER_DATA_PATH"))
+master_location = pd.read_excel("Master Data.xlsx", sheet_name="Location")
 
 
 def info_extractor(text, vendor, location_master_data=master_location):

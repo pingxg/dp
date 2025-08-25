@@ -6,9 +6,12 @@ import time
 import datetime as dt
 
 import numpy as np
+import pandas as pd
 from dotenv import load_dotenv
 
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from drivers.webdriver import setup_driver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
@@ -72,16 +75,28 @@ def filtering_invoice(
                 clickable=False,
             )
         ).select_by_visible_text(company)
-        inv_num_input = wait_for_element(
-            driver, (By.ID, "InvoiceNumberCtrl"), "clear invoice number and input"
-        ).send_keys(invoice_num)
-        supplier_input = wait_for_element(
-            driver,
-            (By.XPATH, "/html/body/div/form/div[3]/div[1]/div[2]/div/input"),
-            "clear supplier name and input",
-        ).send_keys(expressions[supplier][0])
-        if expressions[supplier][0] == "AB Tingstad Papper":
-            status = "Data Incomplete"
+        if invoice_num:
+            inv_num_input = wait_for_element(
+                driver, (By.ID, "InvoiceNumberCtrl"), "clear invoice number and input"
+            ).send_keys(invoice_num)
+        else:
+            inv_num_input = wait_for_element(
+                driver, (By.ID, "InvoiceNumberCtrl"), "clear invoice number and input"
+            ).clear()
+        if supplier:
+            supplier_input = wait_for_element(
+                driver,
+                (By.XPATH, "/html/body/div/form/div[3]/div[1]/div[2]/div/input"),
+                "clear supplier name and input",
+            ).send_keys(expressions[supplier][0])
+            if expressions[supplier][0] == "AB Tingstad Papper":
+                status = "Data Incomplete"
+        else:
+            supplier_input = wait_for_element(
+                driver,
+                (By.XPATH, "/html/body/div/form/div[3]/div[1]/div[2]/div/input"),
+                "clear supplier name and input",
+            ).clear()
         select_status = Select(
             wait_for_element(
                 driver,
@@ -280,9 +295,9 @@ def get_invoice_text(driver, vendor, invoice_num):
                     "find the conform processor button and click",
                 )
                 from selenium.webdriver.common.action_chains import ActionChains
+
                 actions = ActionChains(driver)
                 actions.move_to_element(conform_processor).click().perform()
-
 
     time.sleep(20)
 
@@ -338,7 +353,11 @@ def get_invoice_text(driver, vendor, invoice_num):
                     posting_info["class_code"] = "C7"
                 elif posting_info["location"] == "L76":
                     posting_info["department"] = "D208"
-                elif posting_info["location"] == "L67" or posting_info["location"] == "L72" or posting_info["location"] == "L531":
+                elif (
+                    posting_info["location"] == "L67"
+                    or posting_info["location"] == "L72"
+                    or posting_info["location"] == "L531"
+                ):
                     posting_info["department"] = "D208"
                     posting_info["class_code"] = "C9"
                 elif posting_info["location"] == "L73":
@@ -637,60 +656,222 @@ def get_invoice_text(driver, vendor, invoice_num):
     return True
 
 
-def main():
-    load_dotenv()
-    bot_input = download_csv_data()
-    bot_input = bot_input[bot_input["status"] != "Success"]
-    operational_data = get_inv_number(bot_input)
-    filtered_df = operational_data[operational_data["status"].isin([np.nan, "Failed"])]
+def fetch_invoice_list(driver):
 
-    driver = setup_driver(
-        download_path=os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
-    )
-
-    driver.switch_to.default_content()
     if bw_login(
         driver,
         username=os.getenv("BW_USR"),
         password=os.getenv("BW_PSW"),
         login_url=os.getenv("BW_URL"),
     ):
-
-        for index, row in filtered_df.iterrows():
+        nav_to_purchase_invoice(driver)
+        filtering_invoice(
+            driver,
+            company="Spartao",
+            status="Data Incomplete",
+            supplier=False,
+            invoice_num=False,
+        )
+        driver.save_screenshot("invoice_list.png")
+        with iframe_context(driver, "main_iframe"):
             try:
-                if row["status"] != "Success":
-                    logging.info(
-                        f'==================================== Processing invoice {row["invoice_num"]} from {row["vendor"]} ===================================='
+                wait = WebDriverWait(driver, 10)
+                # Wait for the presence of the second row in the table, indicating data has loaded.
+                wait.until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "/html/body/div/form/div[4]/table/tbody/tr[2]")
                     )
-                    reset_folder(
-                        os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
-                    )
-                    get_invoice_text(
-                        driver=driver,
-                        vendor=row["vendor"].split(" / ")[-1],
-                        invoice_num=row["invoice_num"],
-                    )
-                    filtered_df.at[index, "status"] = "Success"
-                    logging.info(
-                        f"Invoice {row['invoice_num']} from {row['vendor']} has been processed successfully!"
-                    )
+                )
+            except TimeoutException:
+                logging.error("Timeout waiting for invoice data to load.")
+                return pd.DataFrame()
 
-            except Exception as e:
-                timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-                screenshot_path = os.path.join(
-                    os.getcwd(), f"screenshot_{timestamp}.png"
-                )
-                driver.save_screenshot(screenshot_path)
-                filtered_df.at[index, "status"] = "Failed"
-                logging.error(
-                    f"Invoice {row['invoice_num']} from {row['vendor']} failed! Error message: {e}"
-                )
-            finally:
+            rows = driver.find_elements(
+                By.XPATH, "/html/body/div/form/div[4]/table/tbody/tr"
+            )
+            # Print all rows text
+            for i, row in enumerate(rows):
+                print(f"Row {i}: {row.text}")
+            data = []
+            for row in rows:
                 try:
-                    filtered_df = filtered_df.drop(columns="vendor_id")
-                except Exception as e:
-                    pass
-                upload_invoice_data(filtered_df)
+                    vendor = row.find_element(By.XPATH, ".//td[4]/span").text
+                    invoice_num = row.find_element(By.XPATH, ".//td[6]/span").text
+                    data.append(
+                        {
+                            "vendor": vendor,
+                            "invoice_num": invoice_num,
+                            "status": np.nan,
+                        }
+                    )
+                except NoSuchElementException:
+                    # This can happen for header rows or other non-data rows
+                    logging.debug("Skipping a row that is not a valid invoice record.")
+                    continue
+            return pd.DataFrame(data)
+    else:
+        logging.error("Failed to login to BW!")
+        return pd.DataFrame()
+
+
+def main():
+    load_dotenv()
+    # bot_input = pd.read_csv("bot_status.csv", encoding="utf-8", delimiter=";")
+    # bot_input = bot_input[bot_input["status"] != "Success"]
+    # operational_data = get_inv_number(bot_input)
+    # filtered_df = operational_data[operational_data["status"].isin([np.nan, "Failed"])]
+
+    driver = setup_driver(
+        download_path=os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
+    )
+    filtered_df = fetch_invoice_list(driver)
+    if not filtered_df.empty:
+        print("Fetched invoices:")
+        print(filtered_df)
+    else:
+        logging.error("No invoice list found!")
+    driver.switch_to.default_content()
+    # if bw_login(
+    #     driver,
+    #     username=os.getenv("BW_USR"),
+    #     password=os.getenv("BW_PSW"),
+    #     login_url=os.getenv("BW_URL"),
+    # ):
+
+    for index, row in filtered_df.iterrows():
+        try:
+            if row["status"] != "Success":
+                logging.info(
+                    f'==================================== Processing invoice {row["invoice_num"]} from {row["vendor"]} ===================================='
+                )
+                reset_folder(
+                    os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
+                )
+                get_invoice_text(
+                    driver=driver,
+                    vendor=row["vendor"].split(" / ")[-1],
+                    invoice_num=row["invoice_num"],
+                )
+                filtered_df.at[index, "status"] = "Success"
+                logging.info(
+                    f"Invoice {row['invoice_num']} from {row['vendor']} has been processed successfully!"
+                )
+
+        except Exception as e:
+            timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = os.path.join(os.getcwd(), f"screenshot_{timestamp}.png")
+            driver.save_screenshot(screenshot_path)
+            filtered_df.at[index, "status"] = "Failed"
+            logging.error(
+                f"Invoice {row['invoice_num']} from {row['vendor']} failed! Error message: {e}"
+            )
+
+    # After processing all invoices, send one summary email.
+    if not filtered_df.empty:
+        # Clean up DataFrame before sending
+        try:
+            filtered_df = filtered_df.drop(columns="vendor_id")
+        except Exception as e:
+            logging.warning(f"Could not drop 'vendor_id' column: {e}")
+
+        # Send results to finance email
+        try:
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            # Email setup
+            sender_email = os.getenv("SMTP_USERNAME")
+            sender_password = os.getenv("SMTP_PASSWORD")
+            receiver_email = os.getenv("TO_EMAIL")
+
+            # Create message
+            msg = MIMEMultipart()
+            msg["From"] = sender_email
+            msg["To"] = receiver_email
+            msg["Subject"] = (
+                f"Invoice Processing Results - {dt.datetime.now().strftime('%Y-%m-%d')}"
+            )
+
+            # Create HTML table from DataFrame
+            html_table = """
+                <html>
+                <head>
+                    <style>
+                        table {{
+                            border-collapse: collapse;
+                            width: 100%;
+                        }}
+                        th, td {{
+                            border: 1px solid #dddddd;
+                            text-align: left;
+                            padding: 8px;
+                        }}
+                        th {{
+                            background-color: #f2f2f2;
+                        }}
+                        tr:nth-child(even) {{
+                            background-color: #f9f9f9;
+                        }}
+                        .success {{
+                            color: green;
+                        }}
+                        .failed {{
+                            color: red;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <h2>Invoice Processing Results</h2>
+                    <p>Total invoices processed: {total}</p>
+                    <p>Successfully processed: {success}</p>
+                    <p>Failed: {failed}</p>
+                    <table>
+                        <tr>
+                            {headers}
+                        </tr>
+                        {rows}
+                    </table>
+                </body>
+                </html>
+                """.format(
+                total=len(filtered_df),
+                success=len(filtered_df[filtered_df["status"] == "Success"]),
+                failed=len(filtered_df[filtered_df["status"] == "Failed"]),
+                headers="".join([f"<th>{col}</th>" for col in filtered_df.columns]),
+                rows="".join(
+                    [
+                        "<tr>"
+                        + "".join(
+                            [
+                                f'<td class="{"success" if cell == "Success" else "failed" if cell == "Failed" else ""}">{cell}</td>'
+                                for cell in row
+                            ]
+                        )
+                        + "</tr>"
+                        for row in filtered_df.values.tolist()
+                    ]
+                ),
+            )
+
+            # Email body with HTML table
+            msg.attach(MIMEText(html_table, "html"))
+
+            # Send email
+            with smtplib.SMTP_SSL(
+                os.getenv("SMTP_SERVER", "smtp.gmail.com"), 465
+            ) as server:
+                server.login(sender_email, sender_password)
+                server.send_message(msg)
+
+            logging.info(f"Results successfully sent to {receiver_email}")
+
+        except Exception as e:
+            import traceback
+
+            logging.error(f"Failed to send email with results: {e}")
+            logging.error(f"Exception Type: {type(e)}")
+            logging.error(traceback.format_exc())
 
 
 if __name__ == "__main__":
