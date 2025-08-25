@@ -243,6 +243,7 @@ def get_invoice_text(driver, vendor, invoice_num):
         with iframe_context(driver, "info_iframe"):
             if "approver" in posting_info:
                 logging.info("Updating approver.")
+
                 processor_btn = wait_for_element(
                     driver,
                     (By.XPATH, "/html/body/form/div[5]/input[2]"),
@@ -280,6 +281,8 @@ def get_invoice_text(driver, vendor, invoice_num):
                         "find the processor list",
                     )
                 )
+                if vendor == "1381774":  # Overriding the approver to Admin user
+                    posting_info["approver"] = os.getenv("BW_ADMIN")
                 processor_list.select_by_visible_text(posting_info["approver"])
                 add_processor_btn = wait_for_element(
                     driver,
@@ -672,7 +675,6 @@ def fetch_invoice_list(driver):
             supplier=False,
             invoice_num=False,
         )
-        driver.save_screenshot("invoice_list.png")
         with iframe_context(driver, "main_iframe"):
             try:
                 wait = WebDriverWait(driver, 10)
@@ -715,7 +717,7 @@ def fetch_invoice_list(driver):
 
 
 def main():
-    load_dotenv()
+    # load_dotenv()
     # bot_input = pd.read_csv("bot_status.csv", encoding="utf-8", delimiter=";")
     # bot_input = bot_input[bot_input["status"] != "Success"]
     # operational_data = get_inv_number(bot_input)
@@ -726,7 +728,6 @@ def main():
     )
     filtered_df = fetch_invoice_list(driver)
     if not filtered_df.empty:
-        print("Fetched invoices:")
         print(filtered_df)
     else:
         logging.error("No invoice list found!")
@@ -784,6 +785,14 @@ def main():
             sender_email = os.getenv("SMTP_USERNAME")
             sender_password = os.getenv("SMTP_PASSWORD")
             receiver_email = os.getenv("TO_EMAIL")
+
+            # Validate that the recipient email is present before continuing
+            if not receiver_email:
+                logging.error(
+                    "No recipient email address provided. "
+                    'Please set the "TO_EMAIL" environment variable.'
+                )
+                return
 
             # Create message
             msg = MIMEMultipart()
@@ -867,11 +876,7 @@ def main():
             logging.info(f"Results successfully sent to {receiver_email}")
 
         except Exception as e:
-            import traceback
-
             logging.error(f"Failed to send email with results: {e}")
-            logging.error(f"Exception Type: {type(e)}")
-            logging.error(traceback.format_exc())
 
 
 if __name__ == "__main__":
