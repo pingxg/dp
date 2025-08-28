@@ -6,7 +6,7 @@ expressions = {
     "1381774": [
         "S-Business Oy",
         r"alv % alv yht. alv 0 % yht. sis. alv ([-0-9. ​]+) yhteensä alv 0%",
-        "manager",
+        None,
     ],
     "1367729": [
         "METOS OY AB",
