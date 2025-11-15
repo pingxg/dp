@@ -19,8 +19,6 @@ This project is a web automation tool designed to interact with a SharePoint sit
 - **Python 3.10+**: The primary programming language for the application.
 - **Selenium**: For automating web browser interaction.
 - **pdfplumber**: For extracting text and data from PDF files.
-- **SharePlum**: For interacting with SharePoint's REST API.
-- **Flask**: (Optional) For creating a web interface if needed in the future.
 - **SQLite**: (Optional) For local data storage and caching.
 
 ### Architecture

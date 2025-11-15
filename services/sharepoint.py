@@ -1,8 +1,5 @@
 import io
 import os
-from shareplum import Site
-from shareplum import Office365
-from shareplum.site import Version
 import pandas as pd
 import logging
 from io import StringIO
