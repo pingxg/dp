@@ -5,17 +5,51 @@ from selenium import webdriver
 import platform
 
 
-def setup_driver(download_path=None):
-    # Determine the ChromeDriver path based on the operating system
-    if platform.system() == "Windows":
-        chrome_driver_path = r"C:\Program Files\chromedriver.exe"
-    elif platform.system() == "Linux":
-        chrome_driver_path = r"/usr/bin/chromedriver"
-    else:
-        # Default to using webdriver_manager to manage the driver for non-Windows OS
-        chrome_driver_path = None
+# def setup_driver(download_path=None):
+#     # Determine the ChromeDriver path based on the operating system
+#     if platform.system() == "Windows":
+#         chrome_driver_path = r"C:\Program Files\chromedriver.exe"
+#     elif platform.system() == "Linux":
+#         chrome_driver_path = r"/usr/bin/chromedriver"
+#     else:
+#         # Default to using webdriver_manager to manage the driver for non-Windows OS
+#         chrome_driver_path = "/opt/chromedriver"
 
-    chrome_options = Options()
+#     chrome_options = Options()
+#     prefs = {
+#         "download.default_directory": download_path,
+#         "download.extensions_to_open": "applications/pdf",
+#         "safebrowsing.enabled": True,
+#         "plugins.plugins_list": [{"enabled": False, "name": "Chrome PDF Viewer"}],
+#         "download.prompt_for_download": False,
+#         "plugins.always_open_pdf_externally": True,
+#     }
+#     chrome_options.add_experimental_option("prefs", prefs)
+#     chrome_options.add_argument("--no-sandbox")
+#     chrome_options.add_argument("--headless")
+#     chrome_options.add_argument("--disable-dev-shm-usage")
+#     chrome_options.add_argument("--window-size=1920,1080")
+#     chrome_options.add_argument("--disable-gpu")
+
+#     # Use the ChromeDriverManager if no path is provided (useful for non-Windows OS or if no specific path is set)
+#     service = (
+#         Service(ChromeDriverManager().install())
+#         if chrome_driver_path is None
+#         else Service(chrome_driver_path)
+#     )
+#     return webdriver.Chrome(service=service, options=chrome_options)
+
+
+def setup_driver(download_path=None):
+    # Ensure download path is set to /tmp (only writable location in Lambda)
+    import os
+    if download_path is None:
+        download_path = os.getenv("TEMP_DIRECTORY", "/tmp")
+    
+    # Create the directory if it doesn't exist
+    os.makedirs(download_path, exist_ok=True)
+    
+    chrome_options = webdriver.ChromeOptions()
     prefs = {
         "download.default_directory": download_path,
         "download.extensions_to_open": "applications/pdf",
@@ -25,16 +59,18 @@ def setup_driver(download_path=None):
         "plugins.always_open_pdf_externally": True,
     }
     chrome_options.add_experimental_option("prefs", prefs)
-    chrome_options.add_argument("--no-sandbox")
+    chrome_options.binary_location = "/opt/chrome/chrome"
     chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-dev-tools")
+    chrome_options.add_argument("--no-zygote")
+    chrome_options.add_argument("--single-process")
+    chrome_options.add_argument("window-size=2560x1440")
+    chrome_options.add_argument("--user-data-dir=/tmp/chrome-user-data")
+    chrome_options.add_argument("--remote-debugging-port=9222")
 
-    # Use the ChromeDriverManager if no path is provided (useful for non-Windows OS or if no specific path is set)
-    service = (
-        Service(ChromeDriverManager().install())
-        if chrome_driver_path is None
-        else Service(chrome_driver_path)
-    )
-    return webdriver.Chrome(service=service, options=chrome_options)
+    service = Service("/opt/chromedriver")
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver

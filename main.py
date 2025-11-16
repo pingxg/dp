@@ -716,16 +716,23 @@ def fetch_invoice_list(driver):
         return pd.DataFrame()
 
 
-def main():
+def lambda_handler(event, context):
+    print("OPT LIST:", os.listdir("/opt"))
+    print("OPT BIN LIST:", os.listdir("/opt/bin") if os.path.exists("/opt/bin") else "NO /opt/bin")
     # load_dotenv()
     # bot_input = pd.read_csv("bot_status.csv", encoding="utf-8", delimiter=";")
     # bot_input = bot_input[bot_input["status"] != "Success"]
     # operational_data = get_inv_number(bot_input)
     # filtered_df = operational_data[operational_data["status"].isin([np.nan, "Failed"])]
 
-    driver = setup_driver(
-        download_path=os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
-    )
+    # Lambda only allows /tmp for writes - ensure it's set
+    temp_dir = "/tmp"
+    os.environ["TEMP_DIRECTORY"] = temp_dir
+    
+    # Create temp directory if it doesn't exist
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    driver = setup_driver(download_path=temp_dir)
     filtered_df = fetch_invoice_list(driver)
     if not filtered_df.empty:
         print(filtered_df)
@@ -745,9 +752,7 @@ def main():
                 logging.info(
                     f'==================================== Processing invoice {row["invoice_num"]} from {row["vendor"]} ===================================='
                 )
-                reset_folder(
-                    os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp"))
-                )
+                reset_folder(temp_dir)
                 get_invoice_text(
                     driver=driver,
                     vendor=row["vendor"].split(" / ")[-1],
@@ -760,7 +765,7 @@ def main():
 
         except Exception as e:
             timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-            screenshot_path = os.path.join(os.getcwd(), f"screenshot_{timestamp}.png")
+            screenshot_path = os.path.join(temp_dir, f"screenshot_{timestamp}.png")
             driver.save_screenshot(screenshot_path)
             filtered_df.at[index, "status"] = "Failed"
             logging.error(
@@ -879,5 +884,5 @@ def main():
             logging.error(f"Failed to send email with results: {e}")
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

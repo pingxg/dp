@@ -1,31 +1,42 @@
-# Use Python 3.10 on Ubuntu as the base image
-FROM python:3.10-bookworm
+# Stage 1: Build layer with Chromium + Chromedriver
+FROM public.ecr.aws/lambda/python:3.10 AS stage
 
-# Set the working directory in the container
-WORKDIR /app
+# Tools needed to download/unzip browser
+RUN yum install -y -q sudo unzip curl && yum clean all
 
-# Copy your web automation scripts and other necessary files into the container
-COPY . /app
+# Chromium snapshot ID (from CloudBytes article)
+# You can change this later if needed.
+ENV CHROMIUM_VERSION=1002910
 
-# Install any needed packages specified in requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-
-RUN apt update -y && apt install -y \
-    libgl1-mesa-glx \
-    sudo \
-    chromium \
-    chromium-driver \
-    wget \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Copy and run the browser install script
+COPY install-browser.sh /tmp/install-browser.sh
+RUN chmod +x /tmp/install-browser.sh \
+    && /usr/bin/bash /tmp/install-browser.sh
 
 
-RUN mkdir -p /app/logs && touch /app/logs/application.log
+# Stage 2: Final Lambda image
+FROM public.ecr.aws/lambda/python:3.10 AS base
 
+# Install all Chromium dependencies
+COPY chrome-deps.txt /tmp/chrome-deps.txt
+RUN yum install -y $(cat /tmp/chrome-deps.txt) && yum clean all
 
-RUN apt-get update && apt-get install -y supervisor \
-    && rm -rf /var/lib/apt/lists/*
+# Workdir is /var/task in Lambda images
+WORKDIR /var/task
 
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python3", "main.py"]
+# Bring Chromium + Chromedriver from stage image
+COPY --from=stage /opt/chrome /opt/chrome
+COPY --from=stage /opt/chromedriver /opt/chromedriver
+
+# Copy the rest of your app (including main.py, drivers/, etc.)
+COPY . .
+
+# Optional: ensure logs dir exists
+RUN mkdir -p /var/task/logs
+
+# Lambda handler
+CMD ["main.lambda_handler"]

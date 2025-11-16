@@ -11,7 +11,8 @@ from services.sharepoint import download_file
 
 load_dotenv()
 
-TEMP_PATH = os.path.join(os.getcwd(), "temp")
+# Use /tmp for Lambda compatibility (only writable directory)
+TEMP_PATH = os.getenv("TEMP_DIRECTORY", "/tmp")
 
 DEBUG = False
 

@@ -4,8 +4,10 @@ from utils.file_utils import delete_file_by_type, is_file_write_complete
 
 
 def read_pdf_text(
-    path=os.path.join(os.getcwd(), os.getenv("TEMP_DIRECTORY", "temp")), file_type="pdf"
+    path=None, file_type="pdf"
 ):
+    if path is None:
+        path = os.getenv("TEMP_DIRECTORY", "/tmp")
     """
     Read the text content from a PDF file.
 

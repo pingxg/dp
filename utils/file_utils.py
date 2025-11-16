@@ -24,9 +24,24 @@ def reset_folder(path=None):
     Parameters:
     - path (str): The path of the folder to reset. Defaults to TEMP_PATH.
     """
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
+    # In Lambda, /tmp exists and can't be deleted, so only clear its contents
+    if path == "/tmp":
+        # Only delete files inside /tmp, not the directory itself
+        if os.path.exists(path):
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                try:
+                    if os.path.isfile(item_path) or os.path.islink(item_path):
+                        os.unlink(item_path)
+                    elif os.path.isdir(item_path):
+                        shutil.rmtree(item_path)
+                except Exception as e:
+                    print(f"Failed to delete {item_path}: {e}")
+    else:
+        # For non-/tmp paths, use the original logic
+        if os.path.exists(path):
+            shutil.rmtree(path)
+        os.makedirs(path)
 
 
 def is_file_write_complete(file_path, check_interval=1, retries=5):
