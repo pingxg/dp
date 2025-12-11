@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 
 import pdfplumber
 from config.re_pattern_config import get_expressions
-from services.sharepoint import download_file
+
+# from services.sharepoint import download_file
 
 load_dotenv()
 

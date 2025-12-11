@@ -24,7 +24,6 @@ from utils.pdf_utils import read_pdf_text
 from utils.file_utils import reset_folder
 from utils.webdriver_utils import wait_for_element, iframe_context
 from services.authentication import bw_login
-from services.sharepoint import download_csv_data, upload_invoice_data
 
 setup_logging()
 
@@ -57,8 +56,8 @@ def nav_to_purchase_invoice(driver):
     action = ActionChains(driver).move_to_element(purchase_invoices).perform()
     process_purchase_invoices = wait_for_element(
         driver,
-        (By.XPATH, "/html/body/form/table[4]/tbody/tr[2]/td/table/tbody/tr/td[1]"),
-        "navigate to process purchase invoices",
+        (By.XPATH, "/html/body/form/table[4]/tbody/tr[2]/td"),
+        "navigate to process purchase invoices",  # /html/body/form/table[4]/tbody/tr[2]/td
     ).click()
 
 
@@ -302,7 +301,7 @@ def get_invoice_text(driver, vendor, invoice_num):
                 actions = ActionChains(driver)
                 actions.move_to_element(conform_processor).click().perform()
 
-    time.sleep(20)
+    time.sleep(10)
 
     with iframe_context(driver, "info_iframe"):
         post_btn = wait_for_element(
@@ -717,8 +716,11 @@ def fetch_invoice_list(driver):
 
 
 def lambda_handler(event, context):
-    print("OPT LIST:", os.listdir("/opt"))
-    print("OPT BIN LIST:", os.listdir("/opt/bin") if os.path.exists("/opt/bin") else "NO /opt/bin")
+    # print("OPT LIST:", os.listdir("/opt"))
+    # print(
+    #     "OPT BIN LIST:",
+    #     os.listdir("/opt/bin") if os.path.exists("/opt/bin") else "NO /opt/bin",
+    # )
     # load_dotenv()
     # bot_input = pd.read_csv("bot_status.csv", encoding="utf-8", delimiter=";")
     # bot_input = bot_input[bot_input["status"] != "Success"]
@@ -728,10 +730,10 @@ def lambda_handler(event, context):
     # Lambda only allows /tmp for writes - ensure it's set
     temp_dir = "/tmp"
     os.environ["TEMP_DIRECTORY"] = temp_dir
-    
+
     # Create temp directory if it doesn't exist
     os.makedirs(temp_dir, exist_ok=True)
-    
+
     driver = setup_driver(download_path=temp_dir)
     filtered_df = fetch_invoice_list(driver)
     if not filtered_df.empty:
@@ -884,5 +886,5 @@ def lambda_handler(event, context):
             logging.error(f"Failed to send email with results: {e}")
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    lambda_handler(None, None)
