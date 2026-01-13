@@ -101,7 +101,6 @@ def info_extractor(text, vendor, location_master_data=master_location):
     loc_dict = dict(zip(master_location["External ID"], master_location["bw_approver"]))
     loc_dict["L4"] = "Seinäjoki, Sushibar"
     loc_dict["L5"] = "Seppälä, Sushibar"
-    loc_dict["L24"] = "Lappeenranta, Sushibar"
     if expressions[vendor][2] == "manager":
         output["approver"] = loc_dict[output["location"]]
 
@@ -116,8 +115,9 @@ def info_extractor(text, vendor, location_master_data=master_location):
                 if i.group(1):
                     match = str(i.group(1).strip()).split(" ")
                     match_converted = [float(i.replace(" ", "")) for i in match]
+            
             if len(match_converted) == 4:
-                if match_converted[0] == 14:
+                if match_converted[0] == 13.5:
                     output["14"] = match_converted[1]
                     output["14_net"] = match_converted[2]
                     output["14_total"] = match_converted[3]
@@ -126,7 +126,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                     output["24_net"] = match_converted[2]
                     output["24_total"] = match_converted[3]
             elif len(match_converted) == 8:
-                if match_converted[0] == 14:
+                if match_converted[0] == 13.5:
                     output["14"] = match_converted[1]
                     output["14_net"] = match_converted[2]
                     output["14_total"] = match_converted[3]
@@ -195,7 +195,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
         elif vendor == "1426362":  #  "Kalaneuvos Oy"
             for i in matches:
                 if i.group(1):
-                    total_str = str(i.group(1).strip()).split(" alv 14,00% summa eur ")
+                    total_str = str(i.group(1).strip()).split(" alv 13,50% summa eur ")
                     print(total_str)
                     reduced_list = [
                         float(
@@ -214,7 +214,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
         ):  # "FINNISH FRESHFISH OY", "HÄTÄLÄ OY F56451"
             for i in matches:
                 if i.group(1):
-                    total_str = str(i.group(1).strip()).split("14,00 %")
+                    total_str = str(i.group(1).strip()).split("13,50 %")
                     reduced_list = [
                         float(
                             re.sub(r"[^-0-9., ]", "", j)
@@ -242,7 +242,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                         pass  # skip items that cannot be converted to float
 
                 if (
-                    "14.00%" in total_str
+                    "13.50%" in total_str
                     and "25.50%" in total_str
                     and len(new_list) == 4
                 ):
@@ -275,7 +275,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                     output["24"] = total_str[6]
                     output["24_total"] = total_str[7]
 
-                if len(total_str) == 7 and total_str[0] == 14:
+                if len(total_str) == 7 and total_str[0] == 13.5:
                     output["14_net"] = total_str[1]
                     output["14"] = total_str[2]
                     output["14_total"] = total_str[3]
@@ -291,28 +291,11 @@ def info_extractor(text, vendor, location_master_data=master_location):
                     output["24"] = total_str[2]
                     output["24_total"] = total_str[3]
 
-        elif vendor == "2000009":  # "Fisu Pojat Oy"
-            for i in matches:
-                total_str = [*i.group(1).strip().replace(" ", "").replace(",", ".")]
-                for c in range(len(total_str)):
-                    if total_str[c] == ".":
-                        total_str.insert(c + 3, " ")
-
-                total_str_list = "".join(total_str).strip().split(" ")
-                total_str_list = [float(i) for i in total_str_list]
-
-                if (
-                    len(total_str_list) == 3
-                    and total_str_list[2] == total_str_list[1] + total_str_list[0]
-                ):
-                    output["14_net"] = total_str_list[0]
-                    output["14"] = total_str_list[1]
-                    output["14_total"] = total_str_list[2]
         elif vendor == "1553180":  # "Oy Hartwall Ab"
             for i in matches:
                 total_str = i.group(1).strip().replace(" %", "%")
                 total_str = total_str.replace(",", ".").split(" ")
-                if "14%" in total_str and "24%" in total_str:
+                if "13.5%" in total_str and "25.5%" in total_str:
                     output["14_net"] = float(total_str[1])
                     output["14"] = float(total_str[2])
                     output["14_total"] = float(total_str[3])
@@ -335,7 +318,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                 total_str = i.group(1).strip().replace(",", ".").split(" ")
                 total_str = [float(i) for i in total_str]
                 if len(total_str) == 4:
-                    if total_str[1] == 14:
+                    if total_str[1] == 13.5:
                         output["14_net"] = total_str[0]
                         output["14"] = total_str[2]
                         output["14_total"] = total_str[3]
@@ -368,8 +351,8 @@ def info_extractor(text, vendor, location_master_data=master_location):
                 for i in total_str:
                     if "0 % " in i:
                         output["0"] = float(i.replace("0 % ", ""))
-                    if "14 % " in i:
-                        output["14"] = float(i.replace("14 % ", ""))
+                    if "13.5 % " in i:
+                        output["14"] = float(i.replace("13.5 % ", ""))
                     if "25.5 % " in i:
                         output["24"] = float(i.replace("25.5 % ", ""))
                     if "a " in i:
@@ -389,17 +372,17 @@ def info_extractor(text, vendor, location_master_data=master_location):
                     output["24_total"] = round(output["24_net"] + output["24"], 2)
 
         elif (
-            vendor == "1357805" or vendor == "2000219"
+            vendor == "1357805" or vendor == "2000219" or vendor == "2000550"
         ):  # "SPARTAO OY", "Firewok Finland Oy"
             for i in matches:
                 total_str = i.group(1).strip().replace(",", ".").split(" ")
                 for j in range(len(total_str)):
-                    if total_str[j] == "14%":
+                    if total_str[j] == "13.50%":
                         output["14_net"] = float(total_str[j + 1])
                         output["14"] = float(total_str[j + 3])
                         output["14_total"] = output["14_net"] + output["14"]
                         output["14_total"] = round(output["14_total"], 2)
-                    elif total_str[j] == "24%":
+                    elif total_str[j] == "25.50%":
                         output["24_net"] = float(total_str[j + 1])
                         output["24"] = float(total_str[j + 3])
                         output["24_total"] = output["24_net"] + output["24"]
