@@ -168,7 +168,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                             value_list.append(float(j.replace(",", "").strip()))
 
                     if len(value_list) == 3:
-                        if value_list[0] == 14:
+                        if value_list[0] == 13.5:
                             output["14"] = value_list[2]
                             output["14_net"] = value_list[1]
                             output["14_total"] = round(value_list[2] + value_list[1], 2)
@@ -177,7 +177,7 @@ def info_extractor(text, vendor, location_master_data=master_location):
                             output["24_net"] = value_list[1]
                             output["24_total"] = round(value_list[2] + value_list[1], 2)
                     elif len(value_list) == 6:
-                        if value_list[0] == 14:
+                        if value_list[0] == 13.5:
                             output["14"] = value_list[2]
                             output["14_net"] = value_list[1]
                             output["14_total"] = round(value_list[2] + value_list[1], 2)
