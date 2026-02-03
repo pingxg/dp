@@ -75,5 +75,10 @@ expressions = {
         r"veroprosentti veron peruste veron määrä([-0-9,. eur%]+)",
         "manager",
     ],
+    "2000550": [
+        "Maku Pro Oy",
+        r"veroprosentti veron peruste veron määrä([-0-9,. eur%]+)",
+        "manager",
+    ],
     "1301716": ["AB Tingstad Papper", r".*", "manager"],
 }
