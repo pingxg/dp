@@ -449,7 +449,7 @@ def get_invoice_text(driver, vendor, invoice_num):
                             "/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input",
                         ),
                         "updating 14% tax code",
-                    ).send_keys("8")
+                    ).send_keys("9157")
                     save_btn = wait_for_element(
                         driver,
                         (
@@ -513,7 +513,7 @@ def get_invoice_text(driver, vendor, invoice_num):
                                 "/html/body/form/div[3]/div/div[3]/table/tbody/tr[3]/td[5]/div/div/input",
                             ),
                             "updating 24% tax code",
-                        ).send_keys("6")
+                        ).send_keys("9057")
                         save_btn = wait_for_element(
                             driver,
                             (
@@ -577,7 +577,7 @@ def get_invoice_text(driver, vendor, invoice_num):
                             "/html/body/form/div[3]/div/div[3]/table/tbody/tr[2]/td[5]/div/div/input",
                         ),
                         "updating 24% tax code only",
-                    ).send_keys("6")
+                    ).send_keys("9057")
 
     try:
         with iframe_context(driver, "error_iframe"):
